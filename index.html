@@ -1,90 +1,119 @@
 
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#777C6D">
-  <meta name="description" content="Independent apps and experiments by skywa1ker404.">
-  <title>skywa1ker404 — Apps made with care</title>
+  <meta name="description" content="Explore applications and open-source projects by Skywa1ker404.">
+  <title>Skywa1ker404's Studio</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
   <script src="script.js" defer></script>
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to content</a>
-
   <header class="site-header">
-    <a class="brand" href="index.html">
-      <span class="brand-mark">s.</span><span>skywa1ker404</span>
+    <a class="brand" href="./">
+      <span class="brand-mark" aria-hidden="true">S</span>
+      <span>Skywa1ker404<span class="brand-muted">'s Studio</span></span>
     </a>
-    <button class="theme-toggle icon-button" type="button" aria-label="Switch colour theme">
-      <span data-theme-icon>◐</span>
-    </button>
+    <div class="header-actions">
+      <a class="icon-button" href="about/" aria-label="About">ⓘ</a>
+      <button class="icon-button theme-toggle" type="button" aria-label="Switch theme">
+        <span data-theme-icon>◐</span>
+      </button>
+    </div>
   </header>
 
-  <main id="main">
-    <section class="hero section-wrap">
-      <p class="eyebrow"><span class="status-dot"></span> Independent developer · Open source</p>
-      <h1>Small details.<br><span class="text-tonal">Better everyday.</span></h1>
-      <p class="hero-copy">Thoughtful apps and useful experiments, built to make everyday digital life a little better.</p>
-      <div class="hero-actions">
-        <a class="button button-filled" href="apps/">Explore projects ↗</a>
-        <a class="button button-tonal" href="about/">About this studio</a>
+  <main>
+    <section class="hero container">
+      <div class="hero-copy">
+        <span class="eyebrow"><span class="status-dot"></span> Independent software & open source</span>
+        <h1>Useful software.<br><span class="text-accent">Thoughtfully built.</span></h1>
+        <p class="hero-description">
+          A home for my apps, experiments, and open-source projects.
+          Explore what I'm building and find the right version for your device.
+        </p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="apps/">
+            Explore apps <span aria-hidden="true">↗</span>
+          </a>
+          <a class="button button-soft" href="about/">About the studio</a>
+        </div>
       </div>
       <div class="hero-art" aria-hidden="true">
         <div class="art-orbit orbit-one"></div>
         <div class="art-orbit orbit-two"></div>
-        <div class="art-sun"></div>
-        <div class="art-leaf leaf-one"></div>
-        <div class="art-leaf leaf-two"></div>
-        <span class="art-word">made<br>with care</span>
+        <div class="art-tile tile-back">✳</div>
+        <div class="art-tile tile-front"><span>S</span></div>
+        <div class="art-dot"></div>
       </div>
     </section>
 
-    <section class="section-wrap section-block">
+    <section class="container section-block" id="featured">
       <div class="section-heading">
-        <div><p class="eyebrow">The collection</p><h2>Projects worth opening.</h2></div>
-        <a class="text-link" href="apps/">View all ↗</a>
+        <div>
+          <span class="eyebrow">Made with intention</span>
+          <h2>Featured project</h2>
+        </div>
+        <a class="text-link" href="apps/">All projects <span>↗</span></a>
       </div>
-      <div class="project-grid" data-project-grid data-limit="3">
+      <div class="featured-slot" data-featured-project>
+        <p class="loading-note">Loading featured project…</p>
+      </div>
+    </section>
+
+    <section class="container section-block" id="projects">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">The collection</span>
+          <h2>Explore projects</h2>
+        </div>
+        <span class="muted-text" data-result-count></span>
+      </div>
+      <label class="search-box">
+        <span aria-hidden="true">⌕</span>
+        <input type="search" data-project-search placeholder="Search apps and projects…" autocomplete="off">
+        <span class="search-hint">Search</span>
+      </label>
+      <div class="project-grid" data-project-grid data-limit="6">
         <p class="loading-note">Loading projects…</p>
       </div>
+      <div class="section-end">
+        <a class="button button-soft" href="apps/">Browse all projects</a>
+      </div>
     </section>
 
-    <section class="feature-band section-wrap">
-      <div class="feature-symbol" aria-hidden="true">✳</div>
-      <div>
-        <p class="eyebrow">The idea behind it</p>
-        <h2>Useful first. Thoughtful always.</h2>
-        <p>Clear interfaces, respectful defaults, and tools that work for the people using them.</p>
+    <section class="container support-banner">
+      <div class="support-symbol" aria-hidden="true">♡</div>
+      <div class="support-banner-copy">
+        <h2>Open source, made with care.</h2>
+        <p>If you find something useful, you can support the time and effort behind it.</p>
       </div>
-      <a class="button button-tonal" href="about/">About me</a>
-    </section>
-
-    <section class="support-strip section-wrap">
-      <div>
-        <p class="eyebrow">Keep independent work going</p>
-        <h2>Enjoying something here?</h2>
-        <p>Support is optional, always appreciated, and never required to use the apps.</p>
-      </div>
-      <a class="button button-filled" href="support/">Ways to support ↗</a>
+      <a class="button button-primary" href="support/">Support my work</a>
     </section>
   </main>
 
-  <footer class="site-footer section-wrap">
-    <a class="brand footer-brand" href="index.html">
-      <span class="brand-mark">s.</span><span>skywa1ker404</span>
+  <footer class="site-footer container">
+    <a class="brand footer-brand" href="./">
+      <span class="brand-mark" aria-hidden="true">S</span>
+      <span>Skywa1ker404's Studio</span>
     </a>
-    <p>Made with care, curiosity, and persistence.</p>
-    <span>© <span data-year></span> skywa1ker404</span>
+    <div class="footer-links">
+      <a href="apps/">Apps</a>
+      <a href="about/">About</a>
+      <a href="support/">Support</a>
+      <a href="privacy/">Privacy</a>
+      <a href="https://github.com/skywa1ker404" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+    </div>
+    <p class="footer-note">Built independently · © <span data-year></span> Skywa1ker404</p>
   </footer>
 
-  <nav class="bottom-nav" aria-label="Main navigation" data-bottom-nav>
-    <a class="nav-item is-active" href="index.html" data-nav-link><span class="nav-icon">⌂</span><span class="nav-label">Home</span></a>
-    <a class="nav-item" href="apps/" data-nav-link><span class="nav-icon">▦</span><span class="nav-label">Projects</span></a>
-    <a class="nav-item" href="about/" data-nav-link><span class="nav-icon">◉</span><span class="nav-label">About</span></a>
-    <a class="nav-item" href="support/" data-nav-link><span class="nav-icon">♡</span><span class="nav-label">Support</span></a>
+  <nav class="bottom-nav" data-bottom-nav aria-label="Main navigation">
+    <a data-nav-link href="./"><span aria-hidden="true">⌂</span><span class="nav-label">Home</span></a>
+    <a data-nav-link href="apps/"><span aria-hidden="true">▦</span><span class="nav-label">Apps</span></a>
+    <a data-nav-link href="about/"><span aria-hidden="true">ⓘ</span><span class="nav-label">About</span></a>
+    <a data-nav-link href="support/"><span aria-hidden="true">♡</span><span class="nav-label">Support</span></a>
   </nav>
 </body>
 </html>
