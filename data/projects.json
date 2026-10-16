@@ -1,0 +1,40 @@
+
+[
+  {
+    "id": "absencium",
+    "name": "Absencium",
+    "tagline": "Your student companion",
+    "description": "A student organiser concept for missed-class notes, attendance, reminders, and academic life.",
+    "status": "In development",
+    "category": "Android app",
+    "icon": "assets/absencium-icon.svg",
+    "url": "apps/absencium/",
+    "features": [
+      "Notes vault",
+      "Attendance tracking",
+      "Assignments and reminders",
+      "Calendar and holidays"
+    ],
+    "links": {
+      "source": "https://github.com/skywa1ker404/Absencium",
+      "releases": "https://github.com/skywa1ker404/Absencium/releases"
+    }
+  },
+  {
+    "id": "next-project",
+    "name": "Your next project",
+    "tagline": "A placeholder for what's next",
+    "description": "Replace this example with the name, description, icon, and links for your next app.",
+    "status": "Coming soon",
+    "category": "Project",
+    "icon": "assets/project-icon.svg",
+    "url": "apps/your-next-project/",
+    "features": [
+      "Your feature one",
+      "Your feature two"
+    ],
+    "links": {
+      "source": "https://github.com/skywa1ker404"
+    }
+  }
+]
