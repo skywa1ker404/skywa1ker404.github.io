@@ -2,239 +2,1335 @@
 (() => {
   "use strict";
 
-  const root = document.documentElement;
-  const $ = (selector, parent = document) => parent.querySelector(selector);
-  const $$ = (selector, parent = document) => [...parent.querySelectorAll(selector)];
+  /* =========================================================
+     SKYWA1KER404'S STUDIO
+     Static app-store website
+     GitHub Pages + Cloudflare Pages compatible
+     No build step, backend, API key, or tracking scripts
+     ========================================================= */
 
-  const depth = () => {
-    const path = location.pathname;
-    const segments = path.split("/").filter(Boolean);
-    return path.endsWith("/")
-      ? segments.length
-      : Math.max(0, segments.length - 1);
+  const CONFIG = {
+    projectsFile: "data/projects.json",
+    githubApi: "https://api.github.com",
+    supportUrl: "https://www.buymeachai.in/skywa1ker404",
+    githubUser: "skywa1ker404",
+    releaseCacheMs: 5 * 60 * 1000,
+    projectsCacheMs: 5 * 60 * 1000
   };
 
-  const rootURL = path => "../".repeat(depth()) + path.replace(/^\/+/, "");
+  const state = {
+    projects: [],
+    currentApp: null,
+    releases: [],
+    latestAPKs: [],
+    theme: "system",
+    lastScrollY: 0,
+    scrollTicking: false
+  };
 
-  const escapeHTML = value => String(value ?? "").replace(/[&<>"']/g, char => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-  })[char]);
+  const $ = (selector, root = document) =>
+    root.querySelector(selector);
 
-  const safeURL = (value, fallback = "#") => {
+  const $$ = (selector, root = document) =>
+    [...root.querySelectorAll(selector)];
+
+  const escapeHTML = (value = "") =>
+    String(value).replace(/[&<>"']/g, char => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    })[char]);
+
+  const normaliseRepo = repo =>
+    String(repo || "")
+      .trim()
+      .replace(/^https?:\/\/github\.com\//i, "")
+      .replace(/\/+$/, "")
+      .replace(/\.git$/i, "");
+
+  function getBasePath() {
+    const path = location.pathname;
+    const appMatch = path.match(/^(.*\/)(?:apps\/[^/]+\/?)$/);
+    const sectionMatch = path.match(/^(.*\/)(?:about|support|privacy)\/?$/);
+
+    if (appMatch) return appMatch[1];
+    if (sectionMatch) return sectionMatch[1];
+
+    return path.endsWith("/")
+      ? path
+      : path.slice(0, path.lastIndexOf("/") + 1);
+  }
+
+  function siteURL(path = "") {
+    const base = getBasePath();
+    return new URL(String(path).replace(/^\/+/, ""), location.origin + base).href;
+  }
+
+  function safeURL(value, fallback = "#") {
+    if (!value) return fallback;
+
     try {
-      const url = new URL(String(value || fallback), location.href);
-      return ["https:", "http:"].includes(url.protocol) ? url.href : fallback;
+      const url = new URL(value, location.href);
+
+      if (["https:", "http:"].includes(url.protocol)) {
+        return url.href;
+      }
+
+      return fallback;
     } catch {
       return fallback;
     }
-  };
-
-  const icon = name => {
-    const paths = {
-      download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
-      heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z"/>',
-      cup: '<path d="M4 8h12v8a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V8Z"/><path d="M16 10h2a2 2 0 0 1 0 4h-2"/><path d="M8 3c-1 1 1 2 0 3"/><path d="M12 3c-1 1 1 2 0 3"/>',
-      close: '<path d="m18 6-12 12"/><path d="m6 6 12 12"/>',
-      external: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
-      moon: '<path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z"/>',
-      sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/>'
-    };
-    return `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || ""}</svg>`;
-  };
-
-  // Theme preference
-  let savedTheme = null;
-  try { savedTheme = localStorage.getItem("site-theme"); } catch {}
-
-  root.dataset.theme =
-    savedTheme === "light" || savedTheme === "dark"
-      ? savedTheme
-      : (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-
-  function updateThemeButton() {
-    const dark = root.dataset.theme === "dark";
-    const button = $(".theme-toggle");
-    const themeIcon = $("[data-theme-icon]");
-    if (themeIcon) themeIcon.innerHTML = icon(dark ? "sun" : "moon");
-    button?.setAttribute("aria-label", dark ? "Switch to light theme" : "Switch to dark theme");
-    button?.setAttribute("aria-pressed", String(dark));
   }
 
-  updateThemeButton();
+  function externalLink(url, label, className = "button button-soft") {
+    const href = safeURL(url);
 
-  $(".theme-toggle")?.addEventListener("click", () => {
-    root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
-    try { localStorage.setItem("site-theme", root.dataset.theme); } catch {}
-    updateThemeButton();
-  });
+    if (href === "#") return "";
 
-  $$("[data-year]").forEach(el => el.textContent = String(new Date().getFullYear()));
+    return `
+      <a class="${escapeHTML(className)}"
+         href="${escapeHTML(href)}"
+         target="_blank"
+         rel="noopener noreferrer">
+        ${escapeHTML(label)}
+      </a>
+    `;
+  }
 
-  // Root-relative navigation links
-  $$("[data-root-link]").forEach(link => {
-    link.href = rootURL(link.dataset.rootLink);
-  });
+  function setText(selector, value, root = document) {
+    const element = $(selector, root);
+    if (element && value !== undefined && value !== null) {
+      element.textContent = String(value);
+    }
+  }
 
-  // Active navigation
-  const currentPath = location.pathname.replace(/index\.html$/, "").replace(/\/?$/, "/");
+  function setHTML(selector, value, root = document) {
+    const element = $(selector, root);
+    if (element) element.innerHTML = value;
+  }
 
-  $$("[data-nav-link]").forEach(link => {
-    const url = new URL(link.href, location.href);
-    const targetPath = url.pathname.replace(/index\.html$/, "").replace(/\/?$/, "/");
-    const isProjectPage = currentPath.startsWith("/apps/") && targetPath === "/apps/";
-    link.classList.toggle("is-active", targetPath === currentPath || isProjectPage);
-  });
+  function setHidden(element, hidden) {
+    if (element) element.hidden = hidden;
+  }
 
-  // Floating pill: compact down, expand up
-  const nav = $("[data-bottom-nav]");
-  let previousY = window.scrollY;
-  let ticking = false;
+  function slugify(value = "") {
+    return String(value)
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
 
-  window.addEventListener("scroll", () => {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(() => {
-      const y = window.scrollY;
-      const delta = y - previousY;
-      if (y < 45) nav?.classList.remove("is-compact");
-      else if (Math.abs(delta) > 4) nav?.classList.toggle("is-compact", delta > 0);
-      previousY = y;
-      ticking = false;
+  function formatBytes(bytes = 0) {
+    const size = Number(bytes);
+
+    if (!Number.isFinite(size) || size < 0) return "Size unavailable";
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 ** 2) return `${(size / 1024).toFixed(1)} KB`;
+    if (size < 1024 ** 3) return `${(size / 1024 ** 2).toFixed(1)} MB`;
+
+    return `${(size / 1024 ** 3).toFixed(2)} GB`;
+  }
+
+  function formatDate(value) {
+    if (!value) return "Date unavailable";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) return "Date unavailable";
+
+    return new Intl.DateTimeFormat(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric"
+    }).format(date);
+  }
+
+  function normaliseArray(value) {
+    return Array.isArray(value) ? value : [];
+  }
+
+  /* =========================================================
+     THEME
+     Supports system, light, and dark themes
+     ========================================================= */
+
+  function getStoredTheme() {
+    try {
+      return localStorage.getItem("studio-theme") || "system";
+    } catch {
+      return "system";
+    }
+  }
+
+  function applyTheme(theme = "system") {
+    const validThemes = ["system", "light", "dark"];
+
+    state.theme = validThemes.includes(theme) ? theme : "system";
+
+    const root = document.documentElement;
+
+    root.dataset.theme = state.theme;
+    root.style.colorScheme =
+      state.theme === "system" ? "light dark" : state.theme;
+
+    try {
+      localStorage.setItem("studio-theme", state.theme);
+    } catch {
+      // The site still works if storage is unavailable.
+    }
+
+    $$("[data-theme-toggle], #theme-toggle, .theme-toggle").forEach(button => {
+      button.setAttribute(
+        "aria-label",
+        state.theme === "dark"
+          ? "Switch to light theme"
+          : state.theme === "light"
+            ? "Use system theme"
+            : "Switch to dark theme"
+      );
+
+      button.setAttribute("aria-pressed", String(state.theme === "dark"));
     });
-  }, { passive: true });
 
-  nav?.addEventListener("focusin", () => nav.classList.remove("is-compact"));
-  nav?.addEventListener("pointerdown", () => nav.classList.remove("is-compact"));
-
-  // Dialog helpers
-  function showDialog(dialog) {
-    if (!dialog) return;
-    if (typeof dialog.showModal === "function") dialog.showModal();
-    else dialog.setAttribute("open", "");
+    $$("[data-theme-option]").forEach(option => {
+      const selected = option.dataset.themeOption === state.theme;
+      option.setAttribute("aria-pressed", String(selected));
+    });
   }
+
+  function cycleTheme() {
+    const themes = ["system", "light", "dark"];
+    const next = (themes.indexOf(state.theme) + 1) % themes.length;
+    applyTheme(themes[next]);
+  }
+
+  function initTheme() {
+    applyTheme(getStoredTheme());
+
+    document.addEventListener("click", event => {
+      const toggle = event.target.closest(
+        "[data-theme-toggle], #theme-toggle, .theme-toggle"
+      );
+
+      if (toggle) {
+        event.preventDefault();
+        cycleTheme();
+        return;
+      }
+
+      const option = event.target.closest("[data-theme-option]");
+
+      if (option) {
+        event.preventDefault();
+        applyTheme(option.dataset.themeOption);
+      }
+    });
+
+    const systemPreference = window.matchMedia?.("(prefers-color-scheme: dark)");
+
+    systemPreference?.addEventListener?.("change", () => {
+      if (state.theme === "system") {
+        document.documentElement.dataset.theme = "system";
+      }
+    });
+  }
+
+  /* =========================================================
+     DIALOGS
+     Uses native dialog elements where available
+     ========================================================= */
 
   function closeDialog(dialog) {
     if (!dialog) return;
-    if (typeof dialog.close === "function") dialog.close();
-    else dialog.removeAttribute("open");
+
+    if (typeof dialog.close === "function" && dialog.open) {
+      dialog.close();
+    } else {
+      dialog.removeAttribute("open");
+      dialog.hidden = true;
+    }
   }
 
-  $$("[data-close-dialog]").forEach(button => {
-    button.addEventListener("click", () => closeDialog(button.closest("dialog")));
-  });
+  function openDialog(dialog) {
+    if (!dialog) return;
 
-  $$("dialog").forEach(dialog => {
-    dialog.addEventListener("click", event => {
-      if (event.target === dialog) closeDialog(dialog);
-    });
-  });
+    dialog.hidden = false;
 
-  // GitHub release helpers
-  const sizeLabel = bytes => {
-    if (!Number.isFinite(Number(bytes))) return "Size unavailable";
-    const size = Number(bytes);
-    if (size < 1024) return `${size} B`;
-    if (size < 1024 ** 2) return `${(size / 1024).toFixed(1)} KB`;
-    return `${(size / 1024 ** 2).toFixed(2)} MB`;
-  };
+    if (typeof dialog.showModal === "function" && !dialog.open) {
+      dialog.showModal();
+    } else {
+      dialog.setAttribute("open", "");
+    }
+  }
 
-  const dateLabel = value => {
-    if (!value) return "Date unavailable";
-    const date = new Date(value);
-    return Number.isNaN(date.getTime())
-      ? "Date unavailable"
-      : new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(date);
-  };
+  function createDialog(id, title, content) {
+    let dialog = document.getElementById(id);
 
-  const versionLabel = release => release?.name || release?.tag_name || "Version unavailable";
+    if (!dialog) {
+      dialog = document.createElement("dialog");
+      dialog.id = id;
+      dialog.className = "site-dialog";
+      dialog.innerHTML = `
+        <div class="dialog-inner">
+          <div class="dialog-heading">
+            <h2>${escapeHTML(title)}</h2>
+            <button class="icon-button"
+                    type="button"
+                    data-dialog-close
+                    aria-label="Close dialog">
+              ✕
+            </button>
+          </div>
+          <div class="dialog-content"></div>
+        </div>
+      `;
 
-  const variantLabel = filename => {
-    const name = filename.toLowerCase();
-    if (name.includes("universal")) return "Universal APK";
-    if (name.includes("arm64-v8a") || name.includes("arm64")) return "ARM64 · arm64-v8a";
-    if (name.includes("armeabi-v7a") || name.includes("armv7")) return "ARM 32-bit · armeabi-v7a";
-    if (name.includes("x86_64") || name.includes("x64")) return "x86 64-bit · x86_64";
-    if (name.includes("x86")) return "x86 32-bit · x86";
-    return filename;
-  };
-
-  const isAPK = asset => /\.apk$/i.test(asset.name) && asset.state !== "starter";
-
-  async function getReleases(repo) {
-    const cleanRepo = String(repo || "").trim();
-    if (!/^[\w.-]+\/[\w.-]+$/.test(cleanRepo)) {
-      throw new Error("A valid public GitHub repository is not configured.");
+      document.body.appendChild(dialog);
     }
 
-    const response = await fetch(
-      `https://api.github.com/repos/${cleanRepo}/releases?per_page=10`,
-      { headers: { Accept: "application/vnd.github+json" } }
+    const heading = $("h2", dialog);
+    const body = $(".dialog-content", dialog);
+
+    if (heading) heading.textContent = title;
+    if (body) body.innerHTML = content;
+
+    openDialog(dialog);
+    return dialog;
+  }
+
+  document.addEventListener("click", event => {
+    const closeButton = event.target.closest("[data-dialog-close]");
+
+    if (closeButton) {
+      closeDialog(closeButton.closest("dialog"));
+      return;
+    }
+
+    const backdropDialog = event.target;
+
+    if (
+      backdropDialog instanceof HTMLDialogElement &&
+      backdropDialog.open &&
+      event.target === backdropDialog
+    ) {
+      closeDialog(backdropDialog);
+    }
+  });
+
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+      $$("dialog[open]").forEach(closeDialog);
+    }
+  });
+
+  /* =========================================================
+     PROJECT DATA
+     ========================================================= */
+
+  async function loadProjects() {
+    const url = siteURL(CONFIG.projectsFile);
+
+    try {
+      const response = await fetch(url, { cache: "no-cache" });
+
+      if (!response.ok) {
+        throw new Error(`Project data request failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const projects = Array.isArray(data)
+        ? data
+        : normaliseArray(data.projects || data.apps);
+
+      state.projects = projects.filter(project =>
+        project &&
+        typeof project === "object" &&
+        project.name &&
+        project.slug
+      );
+
+      return state.projects;
+    } catch (error) {
+      console.error("Could not load project catalogue:", error);
+
+      state.projects = [];
+
+      $$("[data-project-list], [data-project-grid], #project-grid").forEach(
+        element => {
+          element.innerHTML = `
+            <p class="empty-state">
+              Projects could not be loaded. Please try again later.
+            </p>
+          `;
+        }
+      );
+
+      return [];
+    }
+  }
+
+  function getProjectURL(project) {
+    return siteURL(`apps/${encodeURIComponent(project.slug)}/`);
+  }
+
+  function getProjectIcon(project) {
+    return safeURL(project.icon, siteURL("assets/project-icon.svg"));
+  }
+
+  function getProjectStatus(project) {
+    return project.status || "In development";
+  }
+
+  function projectCard(project) {
+    const name = escapeHTML(project.name);
+    const tagline = escapeHTML(project.tagline || project.description || "");
+    const category = escapeHTML(project.category || "Application");
+    const status = escapeHTML(getProjectStatus(project));
+    const icon = escapeHTML(getProjectIcon(project));
+    const url = escapeHTML(getProjectURL(project));
+
+    return `
+      <article class="project-card">
+        <a class="project-card-link" href="${url}" aria-label="View ${name}">
+          <div class="project-card-top">
+            <img class="project-icon"
+                 src="${icon}"
+                 alt=""
+                 loading="lazy"
+                 width="64"
+                 height="64"
+                 onerror="this.onerror=null;this.src='${escapeHTML(siteURL("assets/project-icon.svg"))}'">
+            <span class="status-label">${status}</span>
+          </div>
+          <p class="eyebrow">${category}</p>
+          <h3>${name}</h3>
+          <p class="project-tagline">${tagline}</p>
+          <span class="text-link">Explore app ↗</span>
+        </a>
+      </article>
+    `;
+  }
+
+  function renderProjectLists() {
+    const projects = state.projects;
+
+    const listSelectors = [
+      "[data-project-list]",
+      "[data-project-grid]",
+      "#project-grid",
+      ".project-grid"
+    ];
+
+    listSelectors.forEach(selector => {
+      $$(selector).forEach(container => {
+        if (container.dataset.projectsRendered === "true") return;
+
+        container.innerHTML = projects.length
+          ? projects.map(projectCard).join("")
+          : `<p class="empty-state">Projects will appear here when available.</p>`;
+
+        container.dataset.projectsRendered = "true";
+      });
+    });
+
+    const featured = $$("[data-featured-projects]");
+
+    featured.forEach(container => {
+      const featuredProjects = projects.filter(project => project.featured);
+
+      container.innerHTML = featuredProjects.length
+        ? featuredProjects.map(projectCard).join("")
+        : projects.slice(0, 3).map(projectCard).join("");
+    });
+
+    initProjectSearch();
+  }
+
+  function initProjectSearch() {
+    const searchInputs = $$(
+      "[data-project-search], #project-search, .project-search"
     );
 
+    searchInputs.forEach(input => {
+      input.addEventListener("input", () => {
+        const query = input.value.trim().toLowerCase();
+
+        $$("[data-project-list], [data-project-grid], #project-grid, .project-grid")
+          .forEach(container => {
+            const filtered = state.projects.filter(project => {
+              const text = [
+                project.name,
+                project.tagline,
+                project.description,
+                project.category,
+                project.status
+              ].filter(Boolean).join(" ").toLowerCase();
+
+              return text.includes(query);
+            });
+
+            container.innerHTML = filtered.length
+              ? filtered.map(projectCard).join("")
+              : `<p class="empty-state">No projects match your search.</p>`;
+          });
+      });
+    });
+  }
+
+  /* =========================================================
+     BOTTOM PILL NAVIGATION
+     Shrinks on scroll down and expands on scroll up
+     ========================================================= */
+
+  function initBottomNavigation() {
+    const nav = $(
+      "[data-bottom-nav], .bottom-nav, .floating-nav, .navigation-pill"
+    );
+
+    if (!nav) return;
+
+    state.lastScrollY = window.scrollY;
+
+    window.addEventListener("scroll", () => {
+      if (state.scrollTicking) return;
+
+      state.scrollTicking = true;
+
+      window.requestAnimationFrame(() => {
+        const currentY = window.scrollY;
+        const difference = currentY - state.lastScrollY;
+
+        if (currentY < 40) {
+          nav.classList.remove("is-compact", "compact");
+          nav.setAttribute("data-compact", "false");
+        } else if (difference > 5) {
+          nav.classList.add("is-compact", "compact");
+          nav.setAttribute("data-compact", "true");
+        } else if (difference < -5) {
+          nav.classList.remove("is-compact", "compact");
+          nav.setAttribute("data-compact", "false");
+        }
+
+        state.lastScrollY = currentY;
+        state.scrollTicking = false;
+      });
+    }, { passive: true });
+
+    const currentPath = location.pathname.replace(/\/+$/, "") || "/";
+
+    $$("a[href]", nav).forEach(link => {
+      try {
+        const linkURL = new URL(link.href, location.href);
+        const linkPath = linkURL.pathname.replace(/\/+$/, "") || "/";
+
+        if (linkPath === currentPath) {
+          link.setAttribute("aria-current", "page");
+        } else {
+          link.removeAttribute("aria-current");
+        }
+      } catch {
+        // Ignore invalid navigation links.
+      }
+    });
+  }
+
+  /* =========================================================
+     GITHUB RELEASES
+     ========================================================= */
+
+  const memoryCache = new Map();
+
+  async function fetchJSON(url, cacheMs = CONFIG.releaseCacheMs) {
+    const cached = memoryCache.get(url);
+
+    if (cached && Date.now() - cached.time < cacheMs) {
+      return cached.data;
+    }
+
+    const response = await fetch(url, {
+      headers: { Accept: "application/vnd.github+json" }
+    });
+
     if (!response.ok) {
-      if (response.status === 404) throw new Error("No public releases were found.");
-      if (response.status === 403) throw new Error("GitHub's public API rate limit may have been reached. Try again later.");
-      throw new Error("Release information could not be loaded from GitHub.");
+      throw new Error(`Request failed (${response.status})`);
     }
 
     const data = await response.json();
-    return Array.isArray(data)
-      ? data.filter(release => !release.draft)
-      : [];
+
+    memoryCache.set(url, {
+      time: Date.now(),
+      data
+    });
+
+    return data;
   }
 
-  // App page renderer
-  const appRoot = $("[data-app-page]");
+  async function getReleases(repo) {
+    const cleanRepo = normaliseRepo(repo);
 
-  async function initAppPage() {
-    if (!appRoot) return;
+    if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(cleanRepo)) {
+      throw new Error("The project's GitHub repository is not configured correctly.");
+    }
 
-    let projects;
+    const url = `${CONFIG.githubApi}/repos/${cleanRepo}/releases?per_page=10`;
+    const releases = await fetchJSON(url);
+
+    return normaliseArray(releases).filter(release => !release.draft);
+  }
+
+  function isAPK(asset) {
+    return /\.apk$/i.test(asset.name || "");
+  }
+
+  function getAPKVariant(filename) {
+    const name = String(filename || "").toLowerCase();
+
+    if (/universal|universal\.apk/.test(name)) return "Universal";
+    if (/arm64[-_]v8a|arm64v8a/.test(name)) return "arm64-v8a";
+    if (/armeabi[-_]v7a|armeabiv7a|armv7/.test(name)) return "armeabi-v7a";
+    if (/x86[-_]64|x86_64/.test(name)) return "x86_64";
+    if (/(^|[-_.])x86([-. _]|\.apk|$)/.test(name)) return "x86";
+
+    return filename || "APK";
+  }
+
+  function getAPKAssets(release) {
+    return normaliseArray(release?.assets)
+      .filter(isAPK)
+      .map(asset => ({
+        name: asset.name || "Application.apk",
+        size: Number(asset.size) || 0,
+        downloadUrl: safeURL(asset.browser_download_url),
+        updatedAt: asset.updated_at,
+        variant: getAPKVariant(asset.name)
+      }))
+      .filter(asset => asset.downloadUrl !== "#");
+  }
+
+  function releaseTag(release) {
+    return release.tag_name || release.name || "Latest release";
+  }
+
+  function renderReleaseRows(releases) {
+    if (!releases.length) {
+      return `<p class="empty-state">No published releases are available yet.</p>`;
+    }
+
+    return releases.map(release => {
+      const tag = escapeHTML(releaseTag(release));
+      const date = escapeHTML(formatDate(release.published_at || release.created_at));
+      const url = escapeHTML(safeURL(release.html_url));
+      const notes = escapeHTML(
+        String(release.body || "No release notes provided.")
+          .replace(/<[^>]*>/g, "")
+          .slice(0, 500)
+      );
+
+      return `
+        <details class="release-item">
+          <summary>
+            <span class="release-summary">
+              <strong>${tag}</strong>
+              <span>${date}</span>
+            </span>
+          </summary>
+          <div class="release-notes">
+            <p>${notes || "No release notes provided."}</p>
+            ${url !== "#" ? `
+              <a href="${url}"
+                 target="_blank"
+                 rel="noopener noreferrer">
+                View release on GitHub ↗
+              </a>` : ""}
+          </div>
+        </details>
+      `;
+    }).join("");
+  }
+
+  function renderAPKRows(apks) {
+    if (!apks.length) {
+      return `
+        <p class="empty-state">
+          No APK files were found in the latest published release.
+        </p>
+      `;
+    }
+
+    return apks.map(apk => `
+      <div class="apk-row">
+        <div class="apk-row-info">
+          <strong>${escapeHTML(apk.variant)}</strong>
+          <span>${escapeHTML(apk.name)}</span>
+          <small>${escapeHTML(formatBytes(apk.size))}</small>
+        </div>
+        <a class="button button-primary apk-download"
+           href="${escapeHTML(apk.downloadUrl)}"
+           download>
+          Download
+        </a>
+      </div>
+    `).join("");
+  }
+
+  function renderDownloadDialog(app, release, apks) {
+    const releaseURL = safeURL(release?.html_url);
+    const repo = normaliseRepo(app.repo);
+    const repoURL = safeURL(`https://github.com/${repo}`);
+
+    const obtainiumLink = app.obtainium && repoURL !== "#"
+      ? `
+        <a class="button button-soft"
+           href="obtainium://add?url=${encodeURIComponent(repoURL)}">
+          Add to Obtainium ↗
+        </a>
+      `
+      : "";
+
+    const releaseLink = releaseURL !== "#"
+      ? externalLink(releaseURL, "View release on GitHub ↗", "text-link")
+      : "";
+
+    const content = `
+      <p class="dialog-description">
+        Choose the APK that matches your device. Each variant is listed
+        separately with its own file size.
+      </p>
+
+      <div class="release-current">
+        <span>Latest release</span>
+        <strong>${escapeHTML(release ? releaseTag(release) : "No release yet")}</strong>
+        <small>${escapeHTML(
+          release ? formatDate(release.published_at || release.created_at) : ""
+        )}</small>
+      </div>
+
+      <details class="apk-dropdown" open>
+        <summary>
+          Available APKs (${apks.length})
+        </summary>
+        <div class="apk-list">
+          ${renderAPKRows(apks)}
+        </div>
+      </details>
+
+      <div class="dialog-actions">
+        ${obtainiumLink}
+        ${releaseLink}
+        ${repoURL !== "#" ? externalLink(repoURL, "Source code ↗") : ""}
+      </div>
+    `;
+
+    createDialog("download-dialog", "Download app", content);
+  }
+
+  async function loadAppReleases(app) {
+    const sizeElement = $("[data-app-size]");
+    const downloadButtons = $$(
+      "[data-download-app], #download-app, .download-app"
+    );
+
+    state.releases = [];
+    state.latestAPKs = [];
+
+    if (sizeElement) sizeElement.textContent = "Checking…";
+
+    downloadButtons.forEach(button => {
+      button.disabled = false;
+      button.setAttribute("aria-disabled", "false");
+    });
+
+    if (!app.repo) {
+      if (sizeElement) sizeElement.textContent = "No repository configured";
+
+      downloadButtons.forEach(button => {
+        button.disabled = true;
+        button.setAttribute("aria-disabled", "true");
+      });
+
+      return;
+    }
+
     try {
-      const response = await fetch(rootURL("data/projects.json"));
-      if (!response.ok) throw new Error("Project catalogue unavailable");
-      projects = await response.json();
+      const releases = await getReleases(app.repo);
+      state.releases = releases;
+
+      const latest = releases[0] || null;
+      state.latestAPKs = getAPKAssets(latest);
+
+      if (sizeElement) {
+        sizeElement.textContent = state.latestAPKs.length
+          ? `${state.latestAPKs.length} variant${state.latestAPKs.length === 1 ? "" : "s"}`
+          : "No APK assets";
+      }
+
+      const releaseContainer = $(
+        "[data-release-list], #release-list, .release-list"
+      );
+
+      if (releaseContainer) {
+        releaseContainer.innerHTML = renderReleaseRows(releases);
+      }
+
+      const latestVersion = latest
+        ? releaseTag(latest)
+        : (app.version || "Not released");
+
+      setText("[data-app-version]", latestVersion);
+      setText("[data-latest-version]", latestVersion);
+
+      const date = latest
+        ? formatDate(latest.published_at || latest.created_at)
+        : "Not released";
+
+      setText("[data-release-date]", date);
+
+      downloadButtons.forEach(button => {
+        button.disabled = !state.latestAPKs.length;
+        button.setAttribute(
+          "aria-disabled",
+          String(!state.latestAPKs.length)
+        );
+
+        if (!state.latestAPKs.length) {
+          button.title = "No APK assets are available in the latest release yet.";
+        } else {
+          button.removeAttribute("title");
+        }
+      });
+    } catch (error) {
+      console.error("Could not load GitHub releases:", error);
+
+      if (sizeElement) sizeElement.textContent = "Unavailable";
+
+      const releaseContainer = $(
+        "[data-release-list], #release-list, .release-list"
+      );
+
+      if (releaseContainer) {
+        releaseContainer.innerHTML = `
+          <p class="empty-state">
+            Release information could not be loaded.
+            Please check the project's GitHub Releases page.
+          </p>
+        `;
+      }
+
+      downloadButtons.forEach(button => {
+        button.disabled = true;
+        button.setAttribute("aria-disabled", "true");
+      });
+    }
+  }
+
+  /* =========================================================
+     APP DETAIL PAGE
+     ========================================================= */
+
+  function getAppSlugFromPath() {
+    const match = location.pathname.match(/\/apps\/([^/]+)/);
+    if (!match) return null;
+
+    try {
+      return decodeURIComponent(match[1]);
     } catch {
-      appRoot.innerHTML = `<section class="container page-heading"><h1>App information unavailable</h1><p>Could not load the project catalogue. Please try again later.</p></section>`;
+      return match[1];
+    }
+  }
+
+  function renderKeyValue(selector, value) {
+    const element = $(selector);
+
+    if (element && value !== undefined && value !== null && value !== "") {
+      element.textContent = String(value);
+    }
+  }
+
+  function renderScreenshots(app) {
+    const container = $(
+      "[data-app-screenshots], #app-screenshots, .app-screenshots"
+    );
+
+    if (!container) return;
+
+    const screenshots = normaliseArray(app.screenshots);
+
+    if (!screenshots.length) {
+      container.hidden = true;
       return;
     }
 
-    const slug = location.pathname.split("/").filter(Boolean).pop();
-    const app = projects.find(project => project.slug === slug);
+    container.hidden = false;
 
-    if (!app) {
-      appRoot.innerHTML = `<section class="container page-heading"><h1>Project not found</h1><p>This app is not listed in the catalogue.</p><a class="button button-primary" href="${escapeHTML(rootURL("apps/"))}">Browse apps</a></section>`;
+    container.innerHTML = screenshots.map((item, index) => {
+      const src = typeof item === "string" ? item : item.src || item.url;
+      const alt = typeof item === "string"
+        ? `${app.name} screenshot ${index + 1}`
+        : item.alt || `${app.name} screenshot ${index + 1}`;
+
+      const safeSrc = safeURL(src);
+
+      if (safeSrc === "#") return "";
+
+      return `
+        <button class="screenshot-item"
+                type="button"
+                data-screenshot-open="${escapeHTML(safeSrc)}"
+                data-screenshot-alt="${escapeHTML(alt)}"
+                aria-label="View ${escapeHTML(alt)}">
+          <img src="${escapeHTML(safeSrc)}"
+               alt="${escapeHTML(alt)}"
+               loading="lazy">
+        </button>
+      `;
+    }).join("");
+  }
+
+  function renderFeatureList(app) {
+    const container = $("[data-app-features], #app-features, .app-features");
+    if (!container) return;
+
+    const features = normaliseArray(app.features);
+
+    if (!features.length) {
+      container.hidden = true;
       return;
     }
+
+    container.hidden = false;
+
+    container.innerHTML = features.map(feature => {
+      const item = typeof feature === "string"
+        ? { title: feature, content: "" }
+        : feature;
+
+      return `
+        <article class="feature-item">
+          <h3>${escapeHTML(item.title || item.name || "Feature")}</h3>
+          ${item.content ? `<p>${escapeHTML(item.content)}</p>` : ""}
+        </article>
+      `;
+    }).join("");
+  }
+
+  function renderDetails(app) {
+    const container = $("[data-app-details], #app-details, .app-details");
+    if (!container) return;
+
+    const details = normaliseArray(app.details);
+
+    if (!details.length) {
+      container.hidden = true;
+      return;
+    }
+
+    container.hidden = false;
+
+    container.innerHTML = details.map((detail, index) => `
+      <details class="app-disclosure" ${index === 0 ? "open" : ""}>
+        <summary>${escapeHTML(detail.title || "More information")}</summary>
+        <div class="disclosure-content">
+          <p>${escapeHTML(detail.content || "")}</p>
+        </div>
+      </details>
+    `).join("");
+  }
+
+  function renderDataSafety(app) {
+    const container = $(
+      "[data-app-data-safety], #app-data-safety, .app-data-safety"
+    );
+
+    if (!container) return;
+
+    const items = normaliseArray(app.dataSafety);
+
+    if (!items.length) {
+      container.hidden = true;
+      return;
+    }
+
+    container.hidden = false;
+
+    container.innerHTML = items.map(item => `
+      <details class="app-disclosure">
+        <summary>${escapeHTML(item.title || "Data and privacy")}</summary>
+        <div class="disclosure-content">
+          <p>${escapeHTML(item.content || "")}</p>
+        </div>
+      </details>
+    `).join("");
+  }
+
+  function renderRelatedApps(app) {
+    const container = $(
+      "[data-related-apps], #related-apps, .related-apps"
+    );
+
+    if (!container) return;
+
+    const related = state.projects
+      .filter(project => project.slug !== app.slug)
+      .filter(project => {
+        if (!app.relatedApps) return true;
+
+        return normaliseArray(app.relatedApps).includes(project.slug);
+      })
+      .slice(0, 4);
+
+    container.innerHTML = related.length
+      ? related.map(projectCard).join("")
+      : `<p class="empty-state">More projects will appear here as they become available.</p>`;
+  }
+
+  function populateAppPage(app) {
+    state.currentApp = app;
 
     document.title = `${app.name} — Skywa1ker404's Studio`;
 
-    const repoURL = safeURL(`https://github.com/${app.repo}`);
-    const supportURL = safeURL(rootURL("support/"));
-    const storeLinks = [
-      app.playStore ? `<a class="button button-soft" href="${escapeHTML(safeURL(app.playStore))}" target="_blank" rel="noopener noreferrer">Google Play ${icon("external")}</a>` : "",
-      app.appStore ? `<a class="button button-soft" href="${escapeHTML(safeURL(app.appStore))}" target="_blank" rel="noopener noreferrer">App Store ${icon("external")}</a>` : "",
-      app.website ? `<a class="button button-soft" href="${escapeHTML(safeURL(app.website))}" target="_blank" rel="noopener noreferrer">Official website ${icon("external")}</a>` : ""
-    ].filter(Boolean).join("");
+    renderKeyValue("[data-app-name]", app.name);
+    renderKeyValue("[data-app-tagline]", app.tagline || "");
+    renderKeyValue("[data-app-description]", app.description || "");
+    renderKeyValue("[data-app-category]", app.category || "Application");
+    renderKeyValue("[data-app-status]", app.status || "In development");
+    renderKeyValue("[data-app-license]", app.license || "Not specified");
+    renderKeyValue("[data-app-platforms]", normaliseArray(app.platforms).join(", "));
+    renderKeyValue("[data-app-version]", app.version || "Not released");
 
-    const bannerStyle = app.banner
-      ? `style="background-image:linear-gradient(90deg,rgba(30,34,24,.14),rgba(30,34,24,.02)),url('${escapeHTML(safeURL(rootURL(app.banner)))}')"`
-      : "";
+    const iconURL = getProjectIcon(app);
+    const iconSelectors = [
+      "[data-app-icon]",
+      "#app-icon",
+      ".app-detail-icon"
+    ];
 
-    appRoot.innerHTML = `
-      <div class="app-banner" ${bannerStyle}></div>
-      <section class="container app-overview">
-        <div class="app-identity">
-          <div class="app-icon-large">
-            <img src="${escapeHTML(rootURL(app.icon || ""))}" alt="${escapeHTML(app.name)} app icon"
-                 onerror="this.remove();this.parentElement.innerHTML='<span class=&quot;app-icon-fallback&quot; aria-hidden=&quot;true&quot;>${escapeHTML((app.name || "?").slice(0,1))}</span>'">
-          </div>
-          <div>
-            <h1>${escapeHTML(app.name)}</h1>
-            <p class="app-tagline">${escapeHTML(app.tagline || "")}</p>
-            <div class="app-status-row">
-              <span class="metadata-pill">${escapeHTML(app.status || "Project")}</span>
-              ${(app.platforms || []).map(platform => `<span class="metadata-pill">${escapeHTML(platform)}</span>`).join("")}
+    iconSelectors.forEach(selector => {
+      $$(selector).forEach(img => {
+        img.src = iconURL;
+        img.alt = `${app.name} icon`;
+      });
+    });
+
+    const banner = $("[data-app-banner], #app-banner, .app-banner");
+
+    if (banner && app.banner) {
+      const bannerURL = safeURL(app.banner);
+
+      if (bannerURL !== "#") {
+        banner.style.backgroundImage =
+          `url("${bannerURL.replace(/["\\]/g, "")}")`;
+      }
+    }
+
+    const sourceLink = $("[data-app-source], #app-source");
+
+    if (sourceLink && app.repo) {
+      sourceLink.href = safeURL(`https://github.com/${normaliseRepo(app.repo)}`);
+      sourceLink.hidden = false;
+    }
+
+    const websiteLink = $("[data-app-website], #app-website");
+
+    if (websiteLink) {
+      if (app.website) {
+        websiteLink.href = safeURL(app.website);
+        websiteLink.hidden = websiteLink.href === "#";
+      } else {
+        websiteLink.hidden = true;
+      }
+    }
+
+    const playStoreLink = $("[data-app-play-store]");
+    if (playStoreLink) {
+      playStoreLink.hidden = !app.playStore;
+      if (app.playStore) playStoreLink.href = safeURL(app.playStore);
+    }
+
+    const appStoreLink = $("[data-app-app-store]");
+    if (appStoreLink) {
+      appStoreLink.hidden = !app.appStore;
+      if (app.appStore) appStoreLink.href = safeURL(app.appStore);
+    }
+
+    const supportButton = $("[data-app-support]");
+    if (supportButton) {
+      supportButton.href = CONFIG.supportUrl;
+      supportButton.target = "_blank";
+      supportButton.rel = "noopener noreferrer";
+    }
+
+    renderScreenshots(app);
+    renderFeatureList(app);
+    renderDetails(app);
+    renderDataSafety(app);
+    renderRelatedApps(app);
+
+    const status = getProjectStatus(app).toLowerCase();
+
+    $$("[data-download-app], #download-app, .download-app").forEach(button => {
+      button.hidden = Boolean(
+        status.includes("planned") ||
+        status.includes("coming soon")
+      );
+    });
+
+    loadAppReleases(app);
+  }
+
+  async function initAppPage() {
+    const slug = getAppSlugFromPath();
+
+    if (!slug) return;
+
+    const projects = await loadProjects();
+    const app = projects.find(project => project.slug === slug);
+
+    if (!app) {
+      const main = $("main");
+
+      if (main) {
+        main.innerHTML = `
+          <section class="empty-state-page">
+            <h1>Project not found</h1>
+            <p>This project may have been moved or removed.</p>
+            <a class="button button-primary" href="${escapeHTML(siteURL("apps/"))}">
+              Browse projects
+            </a>
+          </section>
+        `;
+      }
+
+      return;
+    }
+
+    populateAppPage(app);
+  }
+
+  /* =========================================================
+     DOWNLOAD, OBTAINIUM, STAR AND SUPPORT ACTIONS
+     ========================================================= */
+
+  document.addEventListener("click", event => {
+    const downloadButton = event.target.closest(
+      "[data-download-app], #download-app, .download-app"
+    );
+
+    if (downloadButton) {
+      event.preventDefault();
+
+      if (!state.currentApp) return;
+
+      if (!state.latestAPKs.length) {
+        createDialog(
+          "download-unavailable-dialog",
+          "Downloads unavailable",
+          `
+            <p>No APK files are currently available in the latest published
+            GitHub release.</p>
+            <p>Check the source repository or come back when a release is published.</p>
+            ${externalLink(
+              `https://github.com/${normaliseRepo(state.currentApp.repo)}/releases`,
+              "View GitHub Releases ↗"
+            )}
+          `
+        );
+
+        return;
+      }
+
+      renderDownloadDialog(
+        state.currentApp,
+        state.releases[0] || null,
+        state.latestAPKs
+      );
+
+      return;
+    }
+
+    const starButton = event.target.closest(
+      "[data-star-app], #star-app, .star-app"
+    );
+
+    if (starButton) {
+      event.preventDefault();
+
+      const app = state.currentApp;
+      if (!app?.repo) return;
+
+      const repoURL = safeURL(`https://github.com/${normaliseRepo(app.repo)}`);
+
+      const dialog = createDialog(
+        "star-dialog",
+        "Support this project",
+        `
+          <p>
+            If you like this app, you can support its development by starring
+            the GitHub repository.
+          </p>
+          <p>
+            You must press the <strong>Star</strong> button on GitHub yourself.
+            This website cannot star a repository on your behalf.
+          </p>
+          ${externalLink(repoURL, "Open GitHub repository ↗", "button button-primary")}
+        `
+      );
+
+      const link = $("a.button-primary", dialog);
+
+      if (link) {
+        link.addEventListener("click", () => closeDialog(dialog), { once: true });
+      }
+
+      return;
+    }
+
+    const supportButton = event.target.closest(
+      "[data-support-button], #support-button, .support-button"
+    );
+
+    if (supportButton) {
+      event.preventDefault();
+
+      createDialog(
+        "support-dialog",
+        "Support independent development",
+        `
+          <p>
+            If you find these projects useful, you can support their development
+            through Buy Me a Chai. Support is optional.
+          </p>
+          ${externalLink(
+            CONFIG.supportUrl,
+            "Support on Buy Me a Chai ↗",
+            "button button-primary"
+          )}
+        `
+      );
+
+      return;
+    }
+
+    const screenshotButton = event.target.closest("[data-screenshot-open]");
+
+    if (screenshotButton) {
+      event.preventDefault();
+
+      const src = safeURL(screenshotButton.dataset.screenshotOpen);
+      const alt = screenshotButton.dataset.screenshotAlt || "App screenshot";
+
+      if (src === "#") return;
+
+      createDialog(
+        "screenshot-dialog",
+        alt,
+        `
+          <img class="screenshot-large"
+               src="${escapeHTML(src)}"
+               alt="${escapeHTML(alt)}">
+        `
+      );
+    }
+  });
+
+  /* =========================================================
+     FOOTER YEAR
+     ========================================================= */
+
+  function initFooterYear() {
+    $$("[data-current-year], #current-year, .current-year").forEach(element => {
+      element.textContent = String(new Date().getFullYear());
+    });
+  }
+
+  /* =========================================================
+     MOBILE MENU
+     Works with common data attributes and IDs
+     ========================================================= */
+
+  function initMobileMenu() {
+    document.addEventListener("click", event => {
+      const toggle = event.target.closest(
+        "[data-menu-toggle], #menu-toggle, .menu-toggle"
+      );
+
+      if (toggle) {
+        event.preventDefault();
+
+        const targetId = toggle.getAttribute("aria-controls");
+        const menu = targetId
+          ? document.getElementById(targetId)
+          : $("[data-mobile-menu], #mobile-menu, .mobile-menu");
+
+        if (!menu) return;
+
+        const opening = menu.hidden || !menu.classList.contains("is-open");
+
+        menu.hidden = !opening;
+        menu.classList.toggle("is-open", opening);
+        toggle.setAttribute("aria-expanded", String(opening));
+      }
+
+      const menuLink = event.target.closest(
+        "[data-mobile-menu] a, #mobile-menu a, .mobile-menu a"
+      );
+
+      if (menuLink) {
+        const menu = menuLink.closest(
+          "[data-mobile-menu], #mobile-menu, .mobile-menu"
+        );
+
+        if (menu) {
+          menu.classList.remove("is-open");
+          menu.hidden = true;
+        }
+      }
+    });
+  }
+
+  /* =========================================================
+     ACCESSIBILITY AND LINK SAFETY
+     ========================================================= */
+
+  function initExternalLinks() {
+    $$('a[target="_blank"]').forEach(link => {
+      const rel = new Set((link.getAttribute("rel") || "").split(/\s+/).filter(Boolean));
+      rel.add("noopener");
+      rel.add("noreferrer");
+      link.setAttribute("rel", [...rel].join(" "));
+    });
+  }
+
+  /* =========================================================
+     STARTUP
+     ========================================================= */
+
+  async function init() {
+    initTheme();
+    initBottomNavigation();
+    initFooterYear();
+    initMobileMenu();
+    initExternalLinks();
+
+    const appSlug = getAppSlugFromPath();
+
+    if (appSlug) {
+      await initAppPage();
+    } else {
+      await loadProjects();
+      renderProjectLists();
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init, { once: true });
+  } else {
+    init();
+  }
+})();
+atform)}</span>`).join("")}
             </div>
           </div>
         </div>
