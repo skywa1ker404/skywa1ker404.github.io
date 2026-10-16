@@ -1,40 +1,77 @@
 
 [
   {
-    "id": "absencium",
+    "slug": "absencium",
     "name": "Absencium",
-    "tagline": "Your student companion",
-    "description": "A student organiser concept for missed-class notes, attendance, reminders, and academic life.",
+    "tagline": "Your student companion.",
+    "description": "A student organiser for missed-class notes, attendance, reminders, assignments, and academic planning.",
     "status": "In development",
-    "category": "Android app",
-    "icon": "assets/absencium-icon.svg",
-    "url": "apps/absencium/",
-    "features": [
-      "Notes vault",
-      "Attendance tracking",
-      "Assignments and reminders",
-      "Calendar and holidays"
+    "category": "Student productivity",
+    "platforms": ["Android"],
+    "repo": "skywa1ker404/Absencium",
+    "icon": "assets/absencium-icon.png",
+    "banner": "",
+    "screenshots": [],
+    "website": "",
+    "playStore": "",
+    "appStore": "",
+    "obtainium": true,
+    "packageName": "",
+    "license": "GPL-3.0",
+    "privacySummary": "Designed around local-first storage. Optional online AI features, if included in a release, may send selected content to the configured provider. Check the current release and privacy documentation before using those features.",
+    "dataSafety": [
+      {
+        "title": "Local storage",
+        "content": "The intended design stores notes and academic information locally on the device."
+      },
+      {
+        "title": "Optional AI features",
+        "content": "If enabled in a release, AI features may transmit the content you choose to submit to the configured service. Review the current app settings and provider terms."
+      },
+      {
+        "title": "Accounts and advertising",
+        "content": "This website does not claim that every future app version has been independently audited. Check the source code and release documentation for the behavior of the version you install."
+      }
     ],
-    "links": {
-      "source": "https://github.com/skywa1ker404/Absencium",
-      "releases": "https://github.com/skywa1ker404/Absencium/releases"
-    }
-  },
-  {
-    "id": "next-project",
-    "name": "Your next project",
-    "tagline": "A placeholder for what's next",
-    "description": "Replace this example with the name, description, icon, and links for your next app.",
-    "status": "Coming soon",
-    "category": "Project",
-    "icon": "assets/project-icon.svg",
-    "url": "apps/your-next-project/",
     "features": [
-      "Your feature one",
-      "Your feature two"
+      {
+        "title": "Notes vault",
+        "content": "Organise notes by subject and date, with support for written entries and a place for missed-class material."
+      },
+      {
+        "title": "Attendance",
+        "content": "Plan to track present and absent days, attendance percentage, and a configurable attendance overview."
+      },
+      {
+        "title": "Reminders",
+        "content": "Organise assignment deadlines, homework, and important academic tasks."
+      },
+      {
+        "title": "Calendar",
+        "content": "View academic dates and manage holidays and other schedule changes."
+      },
+      {
+        "title": "Offline-first approach",
+        "content": "Designed to keep core student organisation features useful without requiring a cloud account."
+      }
     ],
-    "links": {
-      "source": "https://github.com/skywa1ker404"
-    }
+    "details": [
+      {
+        "title": "App overview",
+        "content": "Absencium is being developed as a student companion for organising academic life. Features described here represent the intended project direction; availability depends on the published build."
+      },
+      {
+        "title": "Compatibility",
+        "content": "Android application. The supported Android versions and device requirements will be listed once verified against a published release."
+      },
+      {
+        "title": "Permissions",
+        "content": "Permissions depend on enabled features and the released build. Review the Android permission prompts and source code before granting access."
+      },
+      {
+        "title": "Licence and source",
+        "content": "The project repository declares GPL-3.0. Review the repository's current LICENSE and third-party notices for the exact terms and attribution requirements."
+      }
+    ]
   }
 ]
