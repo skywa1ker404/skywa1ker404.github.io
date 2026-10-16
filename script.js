@@ -606,10 +606,29 @@
           <button class="button button-primary button-wide" type="button" data-download-app>
             Download
           </button>
-          <a class="support-round" href="${escapeHTML(SUPPORT_URL)}"
-             target="_blank" rel="noopener noreferrer"
-             aria-label="Support this project" title="Support this project">♡</a>
-          <button class="star-round" type="button" data-star-app
+          
+          <a class="support-round"
+   href="https://www.buymeachai.in/skywa1ker404"
+   target="_blank"
+   rel="noopener noreferrer"
+   aria-label="Support me with Buy Me a Chai"
+   title="Buy Me a Chai">
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M6 8h11v8a4 4 0 0 1-4 4h-3a4 4 0 0 1-4-4V8Z"/>
+    <path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17M9 4v2M13 3v3"/>
+  </svg>
+</a>
+
+<button class="star-round"
+        type="button"
+        data-star-app
+        aria-label="Star this project on GitHub"
+        title="Star on GitHub">
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>
+  </svg>
+</button>
+-app
                   aria-label="Star this project on GitHub" title="Star on GitHub">♥</button>
         </div>
 
