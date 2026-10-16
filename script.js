@@ -2,341 +2,545 @@
 (() => {
   "use strict";
 
-  const CONFIG = {
-    projectsFile: "/data/projects.json",
-    githubApi: "https://api.github.com",
-    supportUrl: "https://www.buymeachai.in/skywa1ker404",
-    releaseCacheMs: 300000
-  };
+  /* Skywa1ker404's Studio — clean, root-safe website controller */
+
+  const ROOT = "/";
+  const PROJECTS_URL = "/data/projects.json";
+  const GITHUB_API = "https://api.github.com";
+  const SUPPORT_URL = "https://www.buymeachai.in/skywa1ker404";
+
+  const $ = (selector, root = document) => root.querySelector(selector);
+  const $$ = (selector, root = document) =>
+    Array.from(root.querySelectorAll(selector));
 
   const state = {
     projects: [],
     app: null,
     releases: [],
     apks: [],
-    theme: "system",
-    lastY: 0,
-    ticking: false
+    theme: "light",
+    lastY: window.scrollY,
+    scrolling: false
   };
 
-  const $ = (selector, root = document) => root.querySelector(selector);
-  const $$ = (selector, root = document) =>
-    [...root.querySelectorAll(selector)];
+  const escapeHTML = value =>
+    String(value ?? "").replace(/[&<>"']/g, char => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    })[char]);
 
-  const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  })[char]);
-
-  const array = value => Array.isArray(value) ? value : [];
-
-  function safeURL(value, fallback = "#") {
-    try {
-      const url = new URL(value, location.href);
-      return ["https:", "http:"].includes(url.protocol)
-        ? url.href
-        : fallback;
-    } catch {
-      return fallback;
-    }
+  function rootURL(path = "") {
+    return new URL(String(path).replace(/^\/+/, ""), location.origin + ROOT).href;
   }
 
-  function repoName(value) {
-    return String(value || "")
+  function assetURL(path, fallback = "/assets/project-icon.svg") {
+    if (!path) return rootURL(fallback);
+
+    try {
+      const url = new URL(path, location.origin + ROOT);
+      if (url.protocol === "https:" || url.protocol === "http:") {
+        return url.href;
+      }
+    } catch {
+      // Use the fallback icon for invalid paths.
+    }
+
+    return rootURL(fallback);
+  }
+
+  function repoName(repo = "") {
+    return String(repo)
       .trim()
       .replace(/^https?:\/\/github\.com\//i, "")
       .replace(/\/+$/, "")
       .replace(/\.git$/i, "");
   }
 
-  function siteURL(path = "") {
-    return new URL(String(path).replace(/^\/+/, ""), location.origin + "/").href;
+  function validExternalURL(value) {
+    try {
+      const url = new URL(value);
+      return ["https:", "http:"].includes(url.protocol) ? url.href : "#";
+    } catch {
+      return "#";
+    }
   }
 
-  function setText(selector, value) {
-    const element = $(selector);
-    if (element && value != null) element.textContent = String(value);
+  function formatBytes(bytes) {
+    const size = Number(bytes) || 0;
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 ** 2) return `${(size / 1024).toFixed(1)} KB`;
+    if (size < 1024 ** 3) return `${(size / 1024 ** 2).toFixed(1)} MB`;
+    return `${(size / 1024 ** 3).toFixed(2)} GB`;
   }
 
-  function formatDate(value) {
-    if (!value) return "Date unavailable";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "Date unavailable";
+  function formatDate(date) {
+    if (!date) return "Date unavailable";
+    const parsed = new Date(date);
+    if (Number.isNaN(parsed.getTime())) return "Date unavailable";
+
     return new Intl.DateTimeFormat(undefined, {
       year: "numeric",
       month: "short",
       day: "numeric"
-    }).format(date);
+    }).format(parsed);
   }
 
-  function formatBytes(value) {
-    const bytes = Number(value);
-    if (!Number.isFinite(bytes) || bytes < 0) return "Size unavailable";
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / 1048576).toFixed(1)} MB`;
+  function list(value) {
+    return Array.isArray(value) ? value : [];
   }
 
-  /* Theme: remembers the preference but applies a real light/dark palette. */
-  function applyTheme(preference, save = true) {
-    state.theme = ["system", "light", "dark"].includes(preference)
-      ? preference : "system";
+  /* ---------------------------------------------------------
+     Theme — CSS uses html[data-theme="dark"]
+     --------------------------------------------------------- */
 
-    const dark = state.theme === "dark" ||
-      (state.theme === "system" &&
-       window.matchMedia("(prefers-color-scheme: dark)").matches);
+  function systemTheme() {
+    return window.matchMedia?.("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  }
 
-    document.documentElement.dataset.theme = dark ? "dark" : "light";
-    document.documentElement.style.colorScheme = dark ? "dark" : "light";
+  function applyTheme(theme, save = true) {
+    state.theme = theme === "dark" ? "dark" : "light";
+
+    document.documentElement.dataset.theme = state.theme;
+    document.documentElement.style.colorScheme = state.theme;
 
     $$("[data-theme-toggle], .theme-toggle, #theme-toggle").forEach(button => {
       button.setAttribute(
         "aria-label",
-        dark ? "Switch to light theme" : "Switch to dark theme"
+        state.theme === "dark" ? "Switch to light theme" : "Switch to dark theme"
       );
-      button.setAttribute("aria-pressed", String(dark));
+      button.setAttribute("aria-pressed", String(state.theme === "dark"));
+    });
+
+    $$("[data-theme-icon]").forEach(icon => {
+      icon.textContent = state.theme === "dark" ? "☀" : "☾";
     });
 
     if (save) {
       try {
         localStorage.setItem("studio-theme", state.theme);
       } catch {
-        // The website remains usable if storage is unavailable.
+        // Continue if browser storage is unavailable.
       }
     }
   }
 
   function initTheme() {
-    let preference = "system";
+    let saved = null;
+
     try {
-      preference = localStorage.getItem("studio-theme") || "system";
+      saved = localStorage.getItem("studio-theme");
     } catch {
-      // Use system preference.
+      // Storage might be disabled.
     }
 
-    applyTheme(preference);
+    applyTheme(saved === "dark" || saved === "light" ? saved : systemTheme(), false);
 
     document.addEventListener("click", event => {
       const button = event.target.closest(
         "[data-theme-toggle], .theme-toggle, #theme-toggle"
       );
+
       if (!button) return;
 
       event.preventDefault();
-      const next = state.theme === "system"
-        ? "dark"
-        : state.theme === "dark" ? "light" : "system";
-
-      applyTheme(next);
+      applyTheme(state.theme === "dark" ? "light" : "dark");
     });
 
-    window.matchMedia("(prefers-color-scheme: dark)")
+    window.matchMedia?.("(prefers-color-scheme: dark)")
       .addEventListener?.("change", () => {
-        if (state.theme === "system") applyTheme("system", false);
+        let saved = null;
+        try {
+          saved = localStorage.getItem("studio-theme");
+        } catch {}
+
+        if (saved !== "dark" && saved !== "light") {
+          applyTheme(systemTheme(), false);
+        }
       });
   }
 
-  /* Project catalogue */
+  /* ---------------------------------------------------------
+     Project data — always load from the website root
+     --------------------------------------------------------- */
+
   async function loadProjects() {
-    const response = await fetch(siteURL(CONFIG.projectsFile), {
-      cache: "no-cache"
-    });
+    const response = await fetch(
+      `${PROJECTS_URL}?v=${encodeURIComponent("1")}`,
+      { cache: "no-cache" }
+    );
 
     if (!response.ok) {
-      throw new Error(`Could not load projects (${response.status})`);
+      throw new Error(`projects.json returned HTTP ${response.status}`);
     }
 
     const data = await response.json();
-    const projects = Array.isArray(data)
-      ? data
-      : array(data.projects || data.apps);
+    const projects = Array.isArray(data) ? data : data.projects || data.apps;
+
+    if (!Array.isArray(projects)) {
+      throw new Error("projects.json must contain an array of projects.");
+    }
 
     state.projects = projects.filter(project =>
-      project && project.name && project.slug
+      project &&
+      typeof project.slug === "string" &&
+      typeof project.name === "string"
     );
 
     return state.projects;
   }
 
   function projectURL(project) {
-    return siteURL(`apps/${encodeURIComponent(project.slug)}/`);
-  }
-
-  function projectIcon(project) {
-    const icon = String(project.icon || "").trim();
-    return icon ? safeURL(siteURL(icon)) : siteURL("assets/favicon.svg");
+    return rootURL(`apps/${encodeURIComponent(project.slug)}/`);
   }
 
   function projectCard(project) {
-    const name = esc(project.name);
-    const tagline = esc(project.tagline || project.description || "");
-    const status = esc(project.status || "In development");
+    const icon = assetURL(project.icon);
+    const status = project.status || "In development";
+    const description = project.tagline || project.description || "";
+    const url = projectURL(project);
 
     return `
       <article class="project-card">
-        <a class="project-card-link" href="${esc(projectURL(project))}"
-           aria-label="View ${name}">
+        <a class="project-card-link" href="${escapeHTML(url)}">
           <div class="project-card-top">
-            <img class="project-icon" src="${esc(projectIcon(project))}"
-                 alt="" loading="lazy" width="54" height="54"
-                 onerror="this.onerror=null;this.src='${esc(siteURL("assets/favicon.svg"))}'">
-            <span class="project-status">${status}</span>
+            <img class="project-icon"
+                 src="${escapeHTML(icon)}"
+                 alt="${escapeHTML(project.name)} icon"
+                 width="64" height="64" loading="lazy"
+                 onerror="this.onerror=null;this.src='/assets/project-icon.svg'">
+            <span class="project-status">${escapeHTML(status)}</span>
           </div>
-          <p class="eyebrow">${esc(project.category || "Application")}</p>
-          <h3>${name}</h3>
-          <p>${tagline}</p>
-          <span class="project-card-bottom">Explore app ↗</span>
+          <p class="eyebrow">${escapeHTML(project.category || "Application")}</p>
+          <h3>${escapeHTML(project.name)}</h3>
+          <p>${escapeHTML(description)}</p>
+          <div class="project-card-bottom">
+            <span>Explore project</span><span class="arrow-bubble">↗</span>
+          </div>
         </a>
-      </article>`;
+      </article>
+    `;
   }
 
-  function renderProjects(query = "") {
-    const term = query.trim().toLowerCase();
-    const filtered = state.projects.filter(project =>
-      [
-        project.name, project.tagline, project.description,
-        project.category, project.status
-      ].filter(Boolean).join(" ").toLowerCase().includes(term)
-    );
+  function renderProjects() {
+    const query = ($("[data-project-search]")?.value || "").trim().toLowerCase();
 
-    $$("[data-project-grid], #project-grid, [data-project-list]")
-      .forEach(container => {
-        const limit = Number(container.dataset.limit) || filtered.length;
-        const visible = filtered.slice(0, limit);
+    const matching = state.projects.filter(project => {
+      const searchable = [
+        project.name,
+        project.tagline,
+        project.description,
+        project.category,
+        project.status
+      ].filter(Boolean).join(" ").toLowerCase();
 
-        container.innerHTML = visible.length
-          ? visible.map(projectCard).join("")
-          : `<p class="empty-state">No projects match your search.</p>`;
-      });
+      return searchable.includes(query);
+    });
 
-    const count = $("[data-result-count]");
-    if (count) {
-      count.textContent = `${filtered.length} project${filtered.length === 1 ? "" : "s"}`;
-    }
+    const count = $$("[data-result-count]");
+    count.forEach(element => {
+      element.textContent = `${matching.length} project${matching.length === 1 ? "" : "s"}`;
+    });
 
-    $$("[data-featured-project]").forEach(container => {
+    // Catalogue grid and homepage grid.
+    $$("[data-project-grid]").forEach(container => {
+      const limit = Number(container.dataset.limit) || matching.length;
+      const shown = matching.slice(0, limit);
+
+      container.innerHTML = shown.length
+        ? shown.map(projectCard).join("")
+        : `<p class="empty-state">No projects match your search.</p>`;
+    });
+
+    // Existing homepage uses singular data-featured-project.
+    const featuredContainer = $("[data-featured-project]");
+    if (featuredContainer) {
       const featured = state.projects.find(project => project.featured)
         || state.projects[0];
 
-      container.innerHTML = featured
-        ? `<div class="featured-card">
-             <img class="project-icon" src="${esc(projectIcon(featured))}"
-                  alt="" width="88" height="88">
-             <div>
-               <span class="eyebrow">${esc(featured.category || "Application")}</span>
-               <h3>${esc(featured.name)}</h3>
-               <p>${esc(featured.tagline || featured.description || "")}</p>
-             </div>
-             <a class="button button-primary" href="${esc(projectURL(featured))}">
-               Explore ↗
-             </a>
-           </div>`
+      featuredContainer.innerHTML = featured
+        ? `
+          <article class="featured-card">
+            <img class="project-icon"
+                 src="${escapeHTML(assetURL(featured.icon))}"
+                 alt="${escapeHTML(featured.name)} icon"
+                 width="88" height="88"
+                 onerror="this.onerror=null;this.src='/assets/project-icon.svg'">
+            <div>
+              <p class="eyebrow">${escapeHTML(featured.category || "Application")}</p>
+              <h3>${escapeHTML(featured.name)}</h3>
+              <p>${escapeHTML(featured.tagline || featured.description || "")}</p>
+            </div>
+            <a class="button button-primary" href="${escapeHTML(projectURL(featured))}">
+              Explore ↗
+            </a>
+          </article>
+        `
         : `<p class="empty-state">Projects will appear here when available.</p>`;
+    }
+  }
+
+  function initProjectCatalogue() {
+    const hasProjectGrid = $("[data-project-grid]");
+    const hasFeatured = $("[data-featured-project]");
+
+    if (!hasProjectGrid && !hasFeatured) return;
+
+    loadProjects()
+      .then(renderProjects)
+      .catch(error => {
+        console.error("Project catalogue failed:", error);
+
+        $$("[data-project-grid]").forEach(container => {
+          container.innerHTML = `
+            <p class="empty-state">
+              Projects couldn't be loaded. Check the project data file and refresh.
+            </p>
+          `;
+        });
+
+        const featured = $("[data-featured-project]");
+        if (featured) {
+          featured.innerHTML = `
+            <p class="empty-state">
+              Featured project couldn't be loaded. Please refresh the page.
+            </p>
+          `;
+        }
+      });
+
+    $$("[data-project-search]").forEach(input => {
+      input.addEventListener("input", renderProjects);
     });
   }
 
-  function initProjectSearch() {
-    $$("[data-project-search], #project-search").forEach(input => {
-      input.addEventListener("input", () => renderProjects(input.value));
-    });
-  }
+  /* ---------------------------------------------------------
+     Floating navigation pill — matches .bottom-nav CSS
+     --------------------------------------------------------- */
 
-  /* Scroll-responsive bottom navigation */
   function initBottomNavigation() {
     const nav = $("[data-bottom-nav], .bottom-nav");
     if (!nav) return;
 
+    const currentPath = location.pathname.replace(/\/+$/, "") || "/";
+
+    $$("a", nav).forEach(link => {
+      try {
+        const linkPath = new URL(link.href).pathname.replace(/\/+$/, "") || "/";
+        if (linkPath === currentPath) {
+          link.classList.add("is-active");
+          link.setAttribute("aria-current", "page");
+        }
+      } catch {}
+    });
+
     state.lastY = window.scrollY;
 
     window.addEventListener("scroll", () => {
-      if (state.ticking) return;
-      state.ticking = true;
+      if (state.scrolling) return;
+      state.scrolling = true;
 
       requestAnimationFrame(() => {
         const y = window.scrollY;
         const delta = y - state.lastY;
 
-        if (y < 40 || delta < -5) {
+        if (y < 40 || delta < -4) {
           nav.classList.remove("is-compact", "compact");
-        } else if (delta > 5) {
-          nav.classList.add("is-compact", "compact");
+          nav.dataset.compact = "false";
+        } else if (delta > 4) {
+          nav.classList.add("is-compact");
+          nav.dataset.compact = "true";
         }
 
         state.lastY = y;
-        state.ticking = false;
+        state.scrolling = false;
       });
     }, { passive: true });
-
-    const current = location.pathname.replace(/\/+$/, "") || "/";
-    $$("a[href]", nav).forEach(link => {
-      try {
-        const path = new URL(link.href).pathname.replace(/\/+$/, "") || "/";
-        if (path === current) link.setAttribute("aria-current", "page");
-        else link.removeAttribute("aria-current");
-      } catch {
-        // Ignore invalid links.
-      }
-    });
   }
 
-  function initFooter() {
-    $$("[data-year], [data-current-year], #current-year").forEach(element => {
-      element.textContent = String(new Date().getFullYear());
-    });
-  }
+  /* ---------------------------------------------------------
+     Dialog helpers
+     --------------------------------------------------------- */
 
-  /* Dialogs */
-  function closeDialog(dialog) {
-    if (!dialog) return;
-    if (dialog.open && typeof dialog.close === "function") dialog.close();
-    else dialog.removeAttribute("open");
-  }
-
-  function openDialog(title, content, className = "") {
-    let dialog = $("#site-dialog");
+  function openDialog(title, content, id = "studio-dialog") {
+    let dialog = document.getElementById(id);
 
     if (!dialog) {
       dialog = document.createElement("dialog");
-      dialog.id = "site-dialog";
-      dialog.innerHTML = `
-        <div class="dialog-inner">
-          <div class="dialog-heading">
-            <h2 data-dialog-title></h2>
-            <button class="dialog-close" type="button"
-                    data-dialog-close aria-label="Close">×</button>
-          </div>
-          <div data-dialog-content></div>
-        </div>`;
+      dialog.id = id;
+      dialog.className = "site-dialog";
       document.body.appendChild(dialog);
     }
 
-    dialog.className = className;
-    setText("[data-dialog-title]", title, dialog);
-    $("[data-dialog-content]", dialog).innerHTML = content;
+    dialog.innerHTML = `
+      <div class="dialog-inner">
+        <div class="dialog-heading">
+          <h2>${escapeHTML(title)}</h2>
+          <button class="dialog-close" type="button" data-close-dialog
+                  aria-label="Close dialog">×</button>
+        </div>
+        <div class="dialog-body">${content}</div>
+      </div>
+    `;
 
-    if (typeof dialog.showModal === "function") dialog.showModal();
-    else dialog.setAttribute("open", "");
+    if (dialog.open) dialog.close();
+    if (typeof dialog.showModal === "function") {
+      dialog.showModal();
+    } else {
+      dialog.setAttribute("open", "");
+    }
 
     return dialog;
   }
 
   document.addEventListener("click", event => {
-    const close = event.target.closest("[data-dialog-close]");
-    if (close) closeDialog(close.closest("dialog"));
+    const close = event.target.closest("[data-close-dialog]");
+    if (close) {
+      const dialog = close.closest("dialog");
+      if (dialog?.open) dialog.close();
+      else dialog?.removeAttribute("open");
+      return;
+    }
 
     if (event.target instanceof HTMLDialogElement &&
-        event.target.open && event.target === event.target) {
-      // Native dialog backdrop handling is browser-managed.
+        event.target.open &&
+        event.target === event.target) {
+      // Backdrop handling is provided by the dialog's native Escape behavior.
     }
   });
 
-  /* App details */
-  function getSlug() {
+  /* ---------------------------------------------------------
+     GitHub releases and APKs
+     --------------------------------------------------------- */
+
+  async function getReleases(repo) {
+    const clean = repoName(repo);
+
+    if (!/^[\w.-]+\/[\w.-]+$/.test(clean)) {
+      throw new Error("Invalid GitHub repository name.");
+    }
+
+    const response = await fetch(
+      `${GITHUB_API}/repos/${clean}/releases?per_page=10`,
+      { headers: { Accept: "application/vnd.github+json" } }
+    );
+
+    if (!response.ok) {
+      throw new Error(`GitHub Releases returned HTTP ${response.status}`);
+    }
+
+    return (await response.json()).filter(release => !release.draft);
+  }
+
+  function apkVariant(filename) {
+    const name = filename.toLowerCase();
+
+    if (name.includes("universal")) return "Universal";
+    if (/arm64[-_]?v8a/.test(name)) return "arm64-v8a";
+    if (/armeabi[-_]?v7a|armv7/.test(name)) return "armeabi-v7a";
+    if (/x86[-_]?64/.test(name)) return "x86_64";
+    if (/(^|[-_.])x86([-. _]|\.apk|$)/.test(name)) return "x86";
+
+    return filename;
+  }
+
+  function renderAPKRows(apks) {
+    if (!apks.length) {
+      return `<p class="empty-state">No APK files were found in the latest published release.</p>`;
+    }
+
+    return apks.map(apk => `
+      <div class="asset-row apk-row">
+        <div>
+          <strong>${escapeHTML(apk.variant)}</strong>
+          <small>${escapeHTML(apk.name)} · ${escapeHTML(formatBytes(apk.size))}</small>
+        </div>
+        <a class="button button-primary"
+           href="${escapeHTML(apk.url)}">Download</a>
+      </div>
+    `).join("");
+  }
+
+  async function loadAppReleases(app) {
+    const size = $("[data-app-size]");
+    const version = $("[data-app-version]");
+    const releaseList = $("[data-release-list]");
+
+    if (size) size.textContent = "Checking…";
+    if (version) version.textContent = "Checking…";
+
+    try {
+      const releases = await getReleases(app.repo);
+      state.releases = releases;
+
+      const latest = releases[0] || null;
+      state.apks = (latest?.assets || [])
+        .filter(asset => /\.apk$/i.test(asset.name || ""))
+        .map(asset => ({
+          name: asset.name,
+          size: asset.size,
+          variant: apkVariant(asset.name),
+          url: validExternalURL(asset.browser_download_url)
+        }))
+        .filter(asset => asset.url !== "#");
+
+      if (size) {
+        size.textContent = state.apks.length
+          ? `${state.apks.length} variant${state.apks.length === 1 ? "" : "s"}`
+          : "No APK assets";
+      }
+
+      if (version) {
+        version.textContent = latest?.tag_name || latest?.name || app.version || "Not released";
+      }
+
+      if (releaseList) {
+        releaseList.innerHTML = releases.length
+          ? releases.map(release => `
+              <details class="disclosure">
+                <summary>
+                  ${escapeHTML(release.tag_name || release.name || "Release")}
+                  <span class="muted">${escapeHTML(formatDate(release.published_at))}</span>
+                </summary>
+                <div class="disclosure-content">
+                  <p class="release-note">${escapeHTML(release.body || "No release notes provided.")}</p>
+                  <a class="text-link"
+                     href="${escapeHTML(validExternalURL(release.html_url))}"
+                     target="_blank" rel="noopener noreferrer">
+                    View release on GitHub ↗
+                  </a>
+                </div>
+              </details>
+            `).join("")
+          : `<p class="empty-state">No published releases yet.</p>`;
+      }
+    } catch (error) {
+      console.error("Release lookup failed:", error);
+      if (size) size.textContent = "Unavailable";
+      if (version) version.textContent = app.version || "Not released";
+      if (releaseList) {
+        releaseList.innerHTML = `
+          <p class="empty-state">
+            Release information couldn't be loaded.
+            You can still visit the GitHub repository.
+          </p>
+        `;
+      }
+    }
+  }
+
+  /* ---------------------------------------------------------
+     App detail page — generated from projects.json
+     --------------------------------------------------------- */
+
+  function currentAppSlug() {
     const match = location.pathname.match(/\/apps\/([^/]+)\/?$/);
     if (!match) return null;
+
     try {
       return decodeURIComponent(match[1]);
     } catch {
@@ -344,396 +548,331 @@
     }
   }
 
-  function detailList(items, className = "app-disclosure") {
-    if (!array(items).length) {
-      return `<p class="muted-text">No additional information provided yet.</p>`;
-    }
+  function renderDisclosure(items, className = "disclosure") {
+    if (!items?.length) return `<p class="muted-text">No information has been added yet.</p>`;
 
     return items.map(item => {
-      const data = typeof item === "string"
-        ? { title: item, content: "" }
-        : item;
+      const title = typeof item === "string" ? item : item.title || item.name || "Details";
+      const content = typeof item === "string" ? "" : item.content || "";
 
-      return `<details class="${className}">
-        <summary>${esc(data.title || data.name || "More information")}</summary>
-        <div class="disclosure-content"><p>${esc(data.content || "")}</p></div>
-      </details>`;
+      return `
+        <details class="${className}">
+          <summary>${escapeHTML(title)}</summary>
+          <div class="disclosure-content">
+            <p>${escapeHTML(content)}</p>
+          </div>
+        </details>
+      `;
     }).join("");
   }
 
-  function renderApp(app) {
+  function renderAppPage(app) {
     state.app = app;
     document.title = `${app.name} — Skywa1ker404's Studio`;
 
-    const repo = repoName(app.repo);
-    const repoURL = repo ? `https://github.com/${repo}` : "#";
     const main = $("main");
     if (!main) return;
 
+    const icon = assetURL(app.icon);
+    const repo = repoName(app.repo);
+    const repoURL = validExternalURL(`https://github.com/${repo}`);
+    const status = app.status || "In development";
+    const platforms = list(app.platforms);
+    const storeLinks = [
+      app.playStore ? `<a class="button button-soft" href="${escapeHTML(validExternalURL(app.playStore))}" target="_blank" rel="noopener noreferrer">Google Play ↗</a>` : "",
+      app.appStore ? `<a class="button button-soft" href="${escapeHTML(validExternalURL(app.appStore))}" target="_blank" rel="noopener noreferrer">App Store ↗</a>` : ""
+    ].filter(Boolean).join("");
+
     main.innerHTML = `
       <div class="app-banner" data-app-banner></div>
+
       <section class="container app-overview">
         <div class="app-identity">
           <div class="app-icon-large">
-            <img data-app-icon src="${esc(projectIcon(app))}"
-                 alt="${esc(app.name)} icon">
+            <img src="${escapeHTML(icon)}" alt="${escapeHTML(app.name)} icon"
+                 onerror="this.onerror=null;this.src='/assets/project-icon.svg'">
           </div>
           <div>
-            <span class="eyebrow">${esc(app.category || "Application")}</span>
-            <h1>${esc(app.name)}</h1>
-            <p class="app-tagline">${esc(app.tagline || "")}</p>
+            <h1>${escapeHTML(app.name)}</h1>
+            <p class="app-tagline">${escapeHTML(app.tagline || "")}</p>
             <div class="app-status-row">
-              <span class="metadata-pill">${esc(app.status || "In development")}</span>
+              <span class="metadata-pill">${escapeHTML(status)}</span>
+              <span class="metadata-pill">${escapeHTML(app.category || "Application")}</span>
             </div>
           </div>
         </div>
 
         <div class="app-actions-row">
-          <button class="button button-primary button-wide"
-                  type="button" data-download-app>
+          <button class="button button-primary button-wide" type="button" data-download-app>
             Download
           </button>
-
-          <a class="support-round"
-             href="${esc(CONFIG.supportUrl)}"
+          <a class="support-round" href="${escapeHTML(SUPPORT_URL)}"
              target="_blank" rel="noopener noreferrer"
-             aria-label="Support with Buy Me a Chai"
-             title="Buy Me a Chai">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M5 8h12v7a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V8Z"/>
-              <path d="M17 10h1a2.5 2.5 0 0 1 0 5h-2"/>
-              <path d="M9 4v2m4-3v3"/>
-            </svg>
-          </a>
-
+             aria-label="Support this project" title="Support this project">♡</a>
           <button class="star-round" type="button" data-star-app
-                  aria-label="Star this project on GitHub"
-                  title="Star on GitHub">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>
-            </svg>
-          </button>
+                  aria-label="Star this project on GitHub" title="Star on GitHub">♥</button>
         </div>
 
         <div class="app-meta-grid">
-          <div class="app-meta"><span>Latest version</span><strong data-app-version>Checking…</strong></div>
-          <div class="app-meta"><span>APK variants</span><strong data-app-size>Checking…</strong></div>
-          <div class="app-meta"><span>Platform</span><strong>${esc(array(app.platforms).join(", ") || "Not specified")}</strong></div>
-          <div class="app-meta"><span>Licence</span><strong>${esc(app.license || "Not specified")}</strong></div>
+          <div class="app-meta">
+            <span>Latest version</span>
+            <strong data-app-version>Checking…</strong>
+          </div>
+          <div class="app-meta">
+            <span>Available APKs</span>
+            <strong data-app-size>Checking…</strong>
+          </div>
+          <div class="app-meta">
+            <span>Platform</span>
+            <strong>${escapeHTML(platforms.join(", ") || "Not specified")}</strong>
+          </div>
+          <div class="app-meta">
+            <span>Licence</span>
+            <strong>${escapeHTML(app.license || "See repository")}</strong>
+          </div>
         </div>
 
-        <p data-app-description>${esc(app.description || "")}</p>
-        <a class="text-link" href="${esc(repoURL)}"
-           target="_blank" rel="noopener noreferrer">View source code ↗</a>
+        ${storeLinks ? `<div class="dialog-actions">${storeLinks}</div>` : ""}
       </section>
 
       <section class="container app-section" data-screenshots-section>
-        <h2>Screenshots</h2><div class="screenshot-row" data-app-screenshots></div>
+        <h2>Screenshots</h2>
+        <div class="screenshot-row" data-screenshot-row></div>
       </section>
+
       <section class="container app-section">
-        <h2>About this app</h2><div class="detail-list">${detailList(app.details)}</div>
+        <h2>About this app</h2>
+        <p>${escapeHTML(app.description || "")}</p>
+        <div class="detail-list">${renderDisclosure(app.details)}</div>
       </section>
+
       <section class="container app-section">
-        <h2>Features</h2><div class="detail-list">${detailList(app.features)}</div>
-      </section>
-      <section class="container app-section">
-        <h2>Data safety</h2>
-        <p class="muted-text">Developer-provided information; not an independent security audit.</p>
-        <div class="data-safety-grid">
-          ${array(app.dataSafety).map(item => `
+        <h2>Features</h2>
+        <div class="detail-list">
+          ${list(app.features).map(feature => `
             <article class="safety-card">
-              <h3>${esc(item.title || "Information")}</h3>
-              <p>${esc(item.content || "")}</p>
-            </article>`).join("")}
+              <h3>${escapeHTML(typeof feature === "string" ? feature : feature.title || feature.name || "Feature")}</h3>
+              ${typeof feature === "object" && feature.content
+                ? `<p>${escapeHTML(feature.content)}</p>` : ""}
+            </article>
+          `).join("") || `<p class="empty-state">Feature details will be added as the project develops.</p>`}
         </div>
       </section>
+
       <section class="container app-section">
-        <h2>Latest releases and changelogs</h2>
+        <h2>Data safety</h2>
+        <p class="muted-text">Developer-provided information, not an independent security audit.</p>
+        <div class="data-safety-grid">
+          ${list(app.dataSafety).map(item => `
+            <article class="safety-card">
+              <h3>${escapeHTML(item.title || "Privacy")}</h3>
+              <p>${escapeHTML(item.content || "")}</p>
+            </article>
+          `).join("") || `<p class="muted-text">No additional details provided.</p>`}
+        </div>
+      </section>
+
+      <section class="container app-section">
+        <h2>Latest releases & changelogs</h2>
         <div class="detail-list" data-release-list>
           <p class="loading-note">Loading releases from GitHub…</p>
         </div>
       </section>
+
       <section class="container app-section">
-        <h2>More apps</h2><div class="related-grid" data-related-apps></div>
-      </section>`;
+        <div class="section-heading">
+          <div><span class="eyebrow">More to explore</span><h2>Other projects</h2></div>
+          <a class="text-link" href="/apps/">All apps ↗</a>
+        </div>
+        <div class="related-grid">
+          ${state.projects.filter(project => project.slug !== app.slug)
+            .slice(0, 3).map(projectCard).join("")}
+        </div>
+      </section>
 
+      <section class="container app-section">
+        <h2>Source code</h2>
+        <p>Read the code, report issues, and follow development on GitHub.</p>
+        <a class="button button-soft" href="${escapeHTML(repoURL)}"
+           target="_blank" rel="noopener noreferrer">Open GitHub repository ↗</a>
+      </section>
+    `;
+
+    // Add the banner image only if a real banner is configured.
     if (app.banner) {
-      const banner = safeURL(app.banner);
-      if (banner !== "#") {
-        const element = $("[data-app-banner]");
-        element.style.backgroundImage = `url("${banner.replace(/["\\]/g, "")}")`;
-        element.dataset.hasImage = "true";
-      }
+      const banner = $("[data-app-banner]", main);
+      banner.style.backgroundImage = `url("${assetURL(app.banner)}")`;
+      banner.dataset.hasImage = "true";
     }
 
-    renderScreenshots(app);
-    renderRelated(app);
-    loadReleases(app);
-  }
+    // Screenshots are optional; hide their section when none are configured.
+    const screenshots = list(app.screenshots);
+    const screenshotSection = $("[data-screenshots-section]", main);
+    const screenshotRow = $("[data-screenshot-row]", main);
 
-  function renderScreenshots(app) {
-    const container = $("[data-app-screenshots]");
-    const section = $("[data-screenshots-section]");
-    const shots = array(app.screenshots);
+    if (!screenshots.length) {
+      screenshotSection.hidden = true;
+    } else {
+      screenshotRow.innerHTML = screenshots.map((item, index) => {
+        const src = typeof item === "string" ? item : item.src || item.url;
+        const alt = typeof item === "string"
+          ? `${app.name} screenshot ${index + 1}`
+          : item.alt || `${app.name} screenshot ${index + 1}`;
 
-    if (!shots.length) {
-      if (section) section.hidden = true;
-      return;
+        return `
+          <button class="screenshot-item" type="button"
+                  data-image-view="${escapeHTML(assetURL(src))}"
+                  data-image-alt="${escapeHTML(alt)}">
+            <img src="${escapeHTML(assetURL(src))}"
+                 alt="${escapeHTML(alt)}" loading="lazy">
+          </button>
+        `;
+      }).join("");
     }
 
-    container.innerHTML = shots.map((shot, index) => {
-      const src = typeof shot === "string" ? shot : shot.src || shot.url;
-      const url = safeURL(src);
-      if (url === "#") return "";
-
-      const alt = typeof shot === "string"
-        ? `${app.name} screenshot ${index + 1}`
-        : shot.alt || `${app.name} screenshot ${index + 1}`;
-
-      return `<button class="screenshot-item" type="button"
-          data-shot="${esc(url)}" data-alt="${esc(alt)}"
-          aria-label="View ${esc(alt)}">
-          <img src="${esc(url)}" alt="${esc(alt)}" loading="lazy">
-        </button>`;
-    }).join("");
-  }
-
-  function renderRelated(app) {
-    const container = $("[data-related-apps]");
-    if (!container) return;
-
-    const related = state.projects.filter(project =>
-      project.slug !== app.slug &&
-      (!array(app.relatedApps).length || array(app.relatedApps).includes(project.slug))
-    ).slice(0, 3);
-
-    container.innerHTML = related.length
-      ? related.map(projectCard).join("")
-      : `<p class="muted-text">More apps will appear here as they become available.</p>`;
-  }
-
-  /* GitHub release and APK asset loading */
-  const releaseCache = new Map();
-
-  async function fetchJSON(url) {
-    const cached = releaseCache.get(url);
-    if (cached && Date.now() - cached.time < CONFIG.releaseCacheMs) {
-      return cached.data;
+    if (status.toLowerCase().includes("planned") ||
+        status.toLowerCase().includes("coming soon")) {
+      $("[data-download-app]", main).hidden = true;
     }
 
-    const response = await fetch(url, {
-      headers: { Accept: "application/vnd.github+json" }
-    });
-
-    if (!response.ok) throw new Error(`GitHub request failed (${response.status})`);
-
-    const data = await response.json();
-    releaseCache.set(url, { time: Date.now(), data });
-    return data;
+    loadAppReleases(app);
   }
 
-  function apkVariant(name) {
-    const lower = name.toLowerCase();
-    if (lower.includes("universal")) return "Universal";
-    if (/arm64[-_]?v8a/.test(lower)) return "arm64-v8a";
-    if (/armeabi[-_]?v7a|armv7/.test(lower)) return "armeabi-v7a";
-    if (/x86[-_]?64/.test(lower)) return "x86_64";
-    if (/(^|[-_.])x86([-. _]|\.apk|$)/.test(lower)) return "x86";
-    return "APK";
-  }
-
-  async function loadReleases(app) {
-    const releaseContainer = $("[data-release-list]");
-    const size = $("[data-app-size]");
-    const version = $("[data-app-version]");
-    const download = $("[data-download-app]");
-
-    if (!app.repo) {
-      if (size) size.textContent = "No repository configured";
-      if (version) version.textContent = app.version || "Not released";
-      if (download) download.disabled = true;
-      if (releaseContainer) releaseContainer.innerHTML =
-        `<p class="muted-text">No GitHub repository is configured.</p>`;
-      return;
-    }
+  async function initAppPage() {
+    const slug = currentAppSlug();
+    if (!slug) return;
 
     try {
-      const repo = repoName(app.repo);
-      if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) {
-        throw new Error("Invalid GitHub repository address");
+      await loadProjects();
+      const app = state.projects.find(project => project.slug === slug);
+
+      if (!app) {
+        const main = $("main");
+        if (main) {
+          main.innerHTML = `
+            <section class="container page-heading">
+              <h1>Project not found</h1>
+              <p>This project is not listed in the current project catalogue.</p>
+              <a class="button button-primary" href="/apps/">Browse projects</a>
+            </section>
+          `;
+        }
+        return;
       }
 
-      const releases = await fetchJSON(
-        `${CONFIG.githubApi}/repos/${repo}/releases?per_page=10`
-      );
-
-      state.releases = array(releases).filter(release => !release.draft);
-      const latest = state.releases[0] || null;
-
-      state.apks = array(latest?.assets)
-        .filter(asset => /\.apk$/i.test(asset.name || ""))
-        .map(asset => ({
-          name: asset.name,
-          size: asset.size,
-          url: safeURL(asset.browser_download_url),
-          variant: apkVariant(asset.name)
-        }))
-        .filter(asset => asset.url !== "#");
-
-      if (version) version.textContent =
-        latest?.tag_name || latest?.name || app.version || "Not released";
-
-      if (size) size.textContent = `${state.apks.length} APK variant${state.apks.length === 1 ? "" : "s"}`;
-
-      if (download) download.disabled = state.apks.length === 0;
-
-      if (!state.releases.length) {
-        releaseContainer.innerHTML =
-          `<p class="muted-text">No published GitHub releases are available yet.</p>`;
-      } else {
-        releaseContainer.innerHTML = state.releases.map(release => `
-          <details class="disclosure">
-            <summary>${esc(release.tag_name || release.name || "Release")}
-              · ${esc(formatDate(release.published_at || release.created_at))}</summary>
-            <div class="disclosure-content">
-              <p class="release-note">${esc(release.body || "No release notes provided.")}</p>
-              ${array(release.assets).length ? `
-                <div class="release-asset-list">
-                  ${release.assets.map(asset => `
-                    <div class="asset-row">
-                      <div><strong>${esc(asset.name)}</strong>
-                        <small>${esc(formatBytes(asset.size))}</small></div>
-                      <a class="button button-soft" href="${esc(safeURL(asset.browser_download_url))}"
-                         target="_blank" rel="noopener noreferrer">Download</a>
-                    </div>`).join("")}
-                </div>` : ""}
-              <p><a class="text-link" href="${esc(safeURL(release.html_url))}"
-                target="_blank" rel="noopener noreferrer">View release on GitHub ↗</a></p>
-            </div>
-          </details>`).join("");
-      }
+      renderAppPage(app);
     } catch (error) {
-      console.error("Release loading failed:", error);
-      if (size) size.textContent = "Unavailable";
-      if (version) version.textContent = app.version || "Unavailable";
-      if (download) download.disabled = true;
-      if (releaseContainer) releaseContainer.innerHTML = `
-        <p class="muted-text">Release information could not be loaded.
-        Check your connection or open the GitHub Releases page directly.</p>
-        <a class="text-link" href="${esc(`https://github.com/${repoName(app.repo)}/releases`)}"
-           target="_blank" rel="noopener noreferrer">GitHub Releases ↗</a>`;
+      console.error("App page failed:", error);
+
+      const main = $("main");
+      if (main) {
+        main.innerHTML = `
+          <section class="container page-heading">
+            <h1>Couldn't load app information</h1>
+            <p>Check the project data file, then refresh this page.</p>
+            <a class="button button-primary" href="/apps/">Browse projects</a>
+          </section>
+        `;
+      }
     }
   }
 
-  /* User actions */
+  /* ---------------------------------------------------------
+     App actions
+     --------------------------------------------------------- */
+
   document.addEventListener("click", event => {
     const download = event.target.closest("[data-download-app]");
+
     if (download) {
       if (!state.app) return;
 
-      const rows = state.apks.map(apk => `
-        <div class="asset-row">
-          <div><strong>${esc(apk.variant)}</strong>
-            <small>${esc(apk.name)} · ${esc(formatBytes(apk.size))}</small></div>
-          <a class="button button-primary" href="${esc(apk.url)}" download>Download</a>
-        </div>`).join("");
+      const repo = repoName(state.app.repo);
+      const repoURL = validExternalURL(`https://github.com/${repo}`);
 
-      const obtainium = state.app.obtainium && state.app.repo
-        ? `<a class="button button-soft" href="obtainium://add?url=${encodeURIComponent(
-            `https://github.com/${repoName(state.app.repo)}`
-          )}">Add to Obtainium ↗</a>`
+      const obtainium = state.app.obtainium
+        ? `<a class="button button-soft" href="obtainium://add?url=${encodeURIComponent(repoURL)}">Add to Obtainium ↗</a>`
         : "";
 
-      const repoURL = `https://github.com/${repoName(state.app.repo)}/releases`;
+      openDialog(
+        `Download ${state.app.name}`,
+        `
+          <p class="dialog-description">
+            Choose a published APK for your device. Each variant shows its own file size.
+          </p>
+          <div class="release-asset-list">
+            ${renderAPKRows(state.apks)}
+          </div>
+          <div class="dialog-actions">
+            ${obtainium}
+            <a class="button button-soft"
+               href="${escapeHTML(repoURL + "/releases")}"
+               target="_blank" rel="noopener noreferrer">All releases ↗</a>
+          </div>
+        `,
+        "download-dialog"
+      );
 
-      openDialog("Download app", `
-        <p class="dialog-description">Choose a published APK variant for your device.</p>
-        <p><strong>Available APKs (${state.apks.length})</strong></p>
-        <div class="release-asset-list">
-          ${rows || `<p class="muted-text">No APK assets are available in the latest published release.</p>`}
-        </div>
-        <div class="dialog-actions">
-          ${obtainium}
-          <a class="button button-soft" href="${esc(repoURL)}"
-             target="_blank" rel="noopener noreferrer">GitHub Releases ↗</a>
-        </div>`);
+      return;
     }
 
     const star = event.target.closest("[data-star-app]");
-    if (star && state.app?.repo) {
-      openDialog("Star this project", `
-        <p>If this app is useful to you, you can support its development by starring the repository on GitHub.</p>
-        <p>You will need to press the Star button on GitHub yourself.</p>
-        <a class="button button-primary" href="${esc(`https://github.com/${repoName(state.app.repo)}`)}"
-           target="_blank" rel="noopener noreferrer">Open GitHub repository ↗</a>`);
+
+    if (star && state.app) {
+      const repoURL = validExternalURL(
+        `https://github.com/${repoName(state.app.repo)}`
+      );
+
+      openDialog(
+        "Star this project",
+        `
+          <p>To support this project, open its GitHub repository and tap <strong>Star</strong>.</p>
+          <p>This website cannot star a repository automatically.</p>
+          <a class="button button-primary" href="${escapeHTML(repoURL)}"
+             target="_blank" rel="noopener noreferrer">Open GitHub ↗</a>
+        `,
+        "star-dialog"
+      );
+
+      return;
     }
 
-    const shot = event.target.closest("[data-shot]");
-    if (shot) {
-      openDialog(shot.dataset.alt || "Screenshot", `
-        <img class="screenshot-large" src="${esc(shot.dataset.shot)}"
-             alt="${esc(shot.dataset.alt || "App screenshot")}">`,
-        "screenshot-dialog");
+    const image = event.target.closest("[data-image-view]");
+
+    if (image) {
+      openDialog(
+        image.dataset.imageAlt || "Screenshot",
+        `<img src="${escapeHTML(image.dataset.imageView)}"
+              alt="${escapeHTML(image.dataset.imageAlt || "App screenshot")}"
+              style="width:100%;max-height:75dvh;object-fit:contain">`,
+        "image-dialog"
+      );
     }
   });
 
-  document.addEventListener("click", event => {
-    const dialog = event.target;
-    if (dialog instanceof HTMLDialogElement &&
-        dialog.open && dialog.id === "site-dialog" &&
-        event.clientX >= dialog.getBoundingClientRect().left &&
-        event.clientX <= dialog.getBoundingClientRect().right &&
-        event.clientY >= dialog.getBoundingClientRect().top &&
-        event.clientY <= dialog.getBoundingClientRect().bottom) {
-      // The close button handles normal dismissal.
-    }
-  });
+  /* ---------------------------------------------------------
+     Footer year
+     --------------------------------------------------------- */
+
+  function initFooter() {
+    $$("[data-year], [data-current-year], #current-year").forEach(element => {
+      element.textContent = String(new Date().getFullYear());
+    });
+  }
+
+  /* ---------------------------------------------------------
+     Start the correct page
+     --------------------------------------------------------- */
 
   async function init() {
     initTheme();
     initBottomNavigation();
     initFooter();
 
-    try {
-      await loadProjects();
-      const slug = getSlug();
-
-      if (slug) {
-        const app = state.projects.find(project => project.slug === slug);
-        if (app) {
-          renderApp(app);
-        } else {
-          const main = $("main");
-          if (main) main.innerHTML = `
-            <section class="container page-heading">
-              <h1>Project not found</h1>
-              <p>This project may have been moved or removed.</p>
-              <a class="button button-primary" href="${esc(siteURL("apps/"))}">Browse apps</a>
-            </section>`;
-        }
-      } else {
-        renderProjects();
-        initProjectSearch();
-      }
-    } catch (error) {
-      console.error("Website initialisation failed:", error);
-      const containers = $$(
-        "[data-project-grid], [data-featured-project], [data-project-list]"
-      );
-      containers.forEach(container => {
-        container.innerHTML =
-          `<p class="empty-state">Content could not be loaded. Refresh the page to try again.</p>`;
-      });
-
-      const main = $("main");
-      if (getSlug() && main) {
-        main.innerHTML = `
-          <section class="container page-heading">
-            <h1>Could not load app information</h1>
-            <p>Check your connection and refresh this page.</p>
-            <a class="button button-primary" href="${esc(siteURL("apps/"))}">Browse apps</a>
-          </section>`;
-      }
+    if (currentAppSlug()) {
+      await initAppPage();
+    } else {
+      initProjectCatalogue();
     }
   }
 
@@ -743,4 +882,3 @@
     init();
   }
 })();
- 
