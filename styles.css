@@ -1,5 +1,5 @@
 
-/* Fixes and fallbacks for dynamically rendered pages */
+/* Final fixes: clickable project cards */
 .project-card-link {
   display: flex;
   flex: 1;
@@ -15,43 +15,24 @@
   margin-top: auto;
 }
 
-.bottom-nav {
-  will-change: padding, gap;
+.project-status {
+  display: inline-flex;
+  align-items: center;
 }
 
-.bottom-nav .nav-label {
-  transition: opacity 180ms ease, width 180ms ease;
-}
-
-.bottom-nav.is-compact .nav-label {
-  width: 0;
-  overflow: hidden;
-  opacity: 0;
-}
-
-html[data-theme="dark"] .site-header {
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .bottom-nav .nav-label {
-    transition: none;
-  }
-}
-
-
-/* Distinct expressive icons for Support and GitHub Star */
+/* Distinct Buy Me a Chai cup and GitHub star icons */
 .support-round,
 .star-round {
   display: inline-grid;
+  flex: 0 0 58px;
   place-items: center;
-  flex: 0 0 auto;
 }
 
 .support-round svg,
 .star-round svg {
-  width: 24px;
-  height: 24px;
+  display: block;
+  width: 25px;
+  height: 25px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;
@@ -64,6 +45,59 @@ html[data-theme="dark"] .site-header {
   stroke: currentColor;
 }
 
-.support-round svg {
-  stroke-width: 1.8;
+/* Bottom pill expands when scrolling up and compacts when scrolling down */
+.bottom-nav {
+  will-change: padding, gap;
+}
+
+.bottom-nav a {
+  transition: padding 220ms ease, gap 220ms ease;
+}
+
+.bottom-nav .nav-label {
+  max-width: 100px;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: max-width 220ms ease, opacity 180ms ease;
+}
+
+.bottom-nav.is-compact {
+  gap: 2px;
+  padding: 6px;
+}
+
+.bottom-nav.is-compact a {
+  gap: 0;
+  padding-inline: 13px;
+}
+
+.bottom-nav.is-compact .nav-label {
+  max-width: 0;
+  opacity: 0;
+}
+
+.project-grid .project-card {
+  min-width: 0;
+}
+
+.app-actions-row button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.screenshot-large {
+  display: block;
+  width: 100%;
+  max-height: 78dvh;
+  object-fit: contain;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bottom-nav,
+  .bottom-nav a,
+  .bottom-nav .nav-label,
+  .project-card {
+    transition: none !important;
+    animation: none !important;
+  }
 }
