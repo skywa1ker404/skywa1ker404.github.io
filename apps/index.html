@@ -1,55 +1,56 @@
 
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#777C6D">
-  <title>Projects — skywa1ker404</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Browse apps and open-source projects by Skywa1ker404.">
+  <title>Apps & Projects — Skywa1ker404's Studio</title>
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../styles.css">
   <script src="../script.js" defer></script>
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
-    <a class="brand" href="../"><span class="brand-mark">s.</span><span>skywa1ker404</span></a>
-    <button class="theme-toggle icon-button" type="button" aria-label="Switch colour theme"><span data-theme-icon>◐</span></button>
+    <a class="brand" href="../"><span class="brand-mark">S</span><span>Skywa1ker404<span class="brand-muted">'s Studio</span></span></a>
+    <div class="header-actions">
+      <button class="icon-button theme-toggle" type="button" aria-label="Switch theme"><span data-theme-icon>◐</span></button>
+    </div>
   </header>
 
-  <main id="main" class="section-wrap page-main">
-    <p class="eyebrow">The collection</p>
-    <h1 class="page-title">All projects<span class="text-tonal">.</span></h1>
-    <p class="page-intro">Apps, experiments, and useful tools built with care. Choose a project to explore its features, downloads, and source code.</p>
+  <main>
+    <section class="container page-heading">
+      <span class="eyebrow">The collection</span>
+      <h1>Apps & projects.</h1>
+      <p>Explore my software, check its details, browse published releases, and find the right download.</p>
+    </section>
 
-    <div class="project-toolbar">
-      <label class="search-field">
+    <section class="container section-block">
+      <label class="search-box">
         <span aria-hidden="true">⌕</span>
-        <span class="sr-only">Search projects</span>
-        <input type="search" placeholder="Find a project…" data-project-search>
+        <input type="search" data-project-search placeholder="Search apps and projects…" autocomplete="off">
+        <span class="search-hint" data-result-count></span>
       </label>
-      <span class="result-count" data-result-count></span>
-    </div>
-
-    <div class="project-grid" data-project-grid>
-      <p class="loading-note">Loading projects…</p>
-    </div>
-    <div class="empty-state" data-empty-state hidden>
-      <h2>No matching projects</h2><p>Try another search term.</p>
-    </div>
+      <div class="project-grid" data-project-grid>
+        <p class="loading-note">Loading projects…</p>
+      </div>
+    </section>
   </main>
 
-  <footer class="site-footer section-wrap">
-    <a class="brand footer-brand" href="../"><span class="brand-mark">s.</span><span>skywa1ker404</span></a>
-    <p>Made with care, curiosity, and persistence.</p>
-    <span>© <span data-year></span> skywa1ker404</span>
+  <footer class="site-footer container">
+    <a class="brand footer-brand" href="../"><span class="brand-mark">S</span><span>Skywa1ker404's Studio</span></a>
+    <div class="footer-links">
+      <a href="../apps/">Apps</a><a href="../about/">About</a><a href="../support/">Support</a><a href="../privacy/">Privacy</a>
+      <a href="https://github.com/skywa1ker404" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+    </div>
+    <p class="footer-note">Built independently · © <span data-year></span> Skywa1ker404</p>
   </footer>
 
-  <nav class="bottom-nav" aria-label="Main navigation" data-bottom-nav>
-    <a class="nav-item" href="../" data-nav-link><span class="nav-icon">⌂</span><span class="nav-label">Home</span></a>
-    <a class="nav-item is-active" href="./" data-nav-link><span class="nav-icon">▦</span><span class="nav-label">Projects</span></a>
-    <a class="nav-item" href="../about/" data-nav-link><span class="nav-icon">◉</span><span class="nav-label">About</span></a>
-    <a class="nav-item" href="../support/" data-nav-link><span class="nav-icon">♡</span><span class="nav-label">Support</span></a>
+  <nav class="bottom-nav" data-bottom-nav aria-label="Main navigation">
+    <a data-nav-link href="../"><span>⌂</span><span class="nav-label">Home</span></a>
+    <a data-nav-link href="./"><span>▦</span><span class="nav-label">Apps</span></a>
+    <a data-nav-link href="../about/"><span>ⓘ</span><span class="nav-label">About</span></a>
+    <a data-nav-link href="../support/"><span>♡</span><span class="nav-label">Support</span></a>
   </nav>
 </body>
 </html>
