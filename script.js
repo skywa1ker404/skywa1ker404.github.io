@@ -606,8 +606,8 @@
           <button class="button button-primary button-wide" type="button" data-download-app>
             Download
           </button>
-          
-          <a class="support-round"
+         
+<a class="support-round"
    href="https://www.buymeachai.in/skywa1ker404"
    target="_blank"
    rel="noopener noreferrer"
@@ -628,8 +628,7 @@
     <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z"/>
   </svg>
 </button>
--app
-                  aria-label="Star this project on GitHub" title="Star on GitHub">♥</button>
+
         </div>
 
         <div class="app-meta-grid">
