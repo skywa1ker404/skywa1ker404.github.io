@@ -38,3 +38,32 @@ html[data-theme="dark"] .site-header {
     transition: none;
   }
 }
+
+
+/* Distinct expressive icons for Support and GitHub Star */
+.support-round,
+.star-round {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.support-round svg,
+.star-round svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.star-round svg {
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+.support-round svg {
+  stroke-width: 1.8;
+}
