@@ -1,0 +1,5 @@
+
+User-agent: *
+Allow: /
+
+Sitemap: https://skywa1ker404.github.io/sitemap.xml
